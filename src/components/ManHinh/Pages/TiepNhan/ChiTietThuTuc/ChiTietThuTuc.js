@@ -69,9 +69,9 @@ const Chitietthutuc = props => {
           <Text
             style={[
               styles.TextBold,
-              {textDecorationLine: 'underline', fontSize: 18, marginTop: 15},
+              {textDecorationLine: 'underline', fontSize: 20, marginTop: 15},
             ]}>
-            Thông tin thủ tục
+            THÔNG TIN THỦ TỤC
           </Text>
           <View style={[styles.viewngang]}>
             <View style={{width: '40%'}}>
@@ -113,7 +113,11 @@ const Chitietthutuc = props => {
             <View style={{width: '60%', flexDirection: 'row'}}>
               <Text style={styles.TextBold}>: </Text>
               <CheckBox
-                isChecked={tabledata.MC_TTHC_GV_ThuTucLienThong?tabledata.MC_TTHC_GV_ThuTucLienThong:false}
+                isChecked={
+                  tabledata.MC_TTHC_GV_ThuTucLienThong
+                    ? tabledata.MC_TTHC_GV_ThuTucLienThong
+                    : false
+                }
                 disable={true}
                 onClick={() => {}}
                 tintColors={{
@@ -132,7 +136,11 @@ const Chitietthutuc = props => {
             <View style={{width: '39%', flexDirection: 'row'}}>
               <Text style={styles.TextBold}>: </Text>
               <CheckBox
-                isChecked={tabledata.MC_TTHC_GV_ThuTucKhongApDungTrucTuyen?tabledata.MC_TTHC_GV_ThuTucKhongApDungTrucTuyen:false}
+                isChecked={
+                  tabledata.MC_TTHC_GV_ThuTucKhongApDungTrucTuyen
+                    ? tabledata.MC_TTHC_GV_ThuTucKhongApDungTrucTuyen
+                    : false
+                }
                 disable={true}
                 onClick={() => {}}
                 tintColors={{
@@ -221,7 +229,7 @@ const Chitietthutuc = props => {
                     </Text>
                   </DataTable.Title>
                 </DataTable.Header>
-                {tabletphs.map((td,index)=> (
+                {tabletphs.map((td, index) => (
                   <DataTable.Row key={index}>
                     <DataTable.Cell
                       style={[
@@ -287,7 +295,11 @@ const Chitietthutuc = props => {
                       ]}>
                       <Text style={styles.TextNormal}>
                         <CheckBox
-                          isChecked={td.MC_TTHC_GV_ThanhPhanHoSo_BatBuoc?td.MC_TTHC_GV_ThanhPhanHoSo_BatBuoc:false}
+                          isChecked={
+                            td.MC_TTHC_GV_ThanhPhanHoSo_BatBuoc
+                              ? td.MC_TTHC_GV_ThanhPhanHoSo_BatBuoc
+                              : false
+                          }
                           disable={true}
                           onClick={() => {}}
                           tintColors={{
@@ -427,7 +439,7 @@ const Chitietthutuc = props => {
                     </Text>
                   </DataTable.Title>
                 </DataTable.Header>
-                {tablettth.map((td,index) => (
+                {tablettth.map((td, index) => (
                   <DataTable.Row key={index}>
                     <DataTable.Cell
                       style={[
@@ -572,11 +584,7 @@ const Chitietthutuc = props => {
       </View>
       <View style={styles.footer}>
         <View style={[styles.buttonHuy, {marginLeft: 30}]}>
-          <TouchableOpacity
-            style={styles.touchableOpacity}
-            onPress={() => {
-              console.log('ID: ' + idThuTuc);
-            }}>
+          <TouchableOpacity style={styles.touchableOpacity} onPress={() => {}}>
             <Text style={{color: 'black', fontSize: 19}}>Hủy</Text>
           </TouchableOpacity>
         </View>
@@ -590,7 +598,6 @@ const Chitietthutuc = props => {
             <Text style={{color: '#ffffff', fontSize: 19}}>Soạn hồ sơ</Text>
           </TouchableOpacity>
         </View>
-        
       </View>
       <Footer />
     </SafeAreaView>

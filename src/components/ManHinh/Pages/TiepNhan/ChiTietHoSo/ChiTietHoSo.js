@@ -578,6 +578,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 15,
   },
+  
   TitleText: {
     color: 'black',
     fontSize: 21,

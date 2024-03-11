@@ -201,10 +201,11 @@ function DangNhap(props) {
                     ) {
                       LuuTaiKhoanVaMatKhau();
                     }
-                    props.navigation.navigate('TrangChu');
+                    //props.navigation.navigate('TrangChu');
+                    props.navigation.navigate('CBXL_DanhSachThuTuc');
                   })
                   .catch(function (error) {
-                    console.log(error);
+                    console.log('208 - Xu ly dang nhap', error);
                   });
               } else if (username.length === 0 || password.length === 0) {
                 handleModalPress1();
@@ -221,7 +222,7 @@ function DangNhap(props) {
         }
       })
       .catch(err => {
-        console.log(err);
+        console.log('225 - Dang nhap', err);
       })
       .finally(() => {
         setLoading(false);

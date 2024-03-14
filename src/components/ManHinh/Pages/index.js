@@ -30,7 +30,6 @@ const Index = () => {
         <Stack.Screen name="SoanHoSo" component={Soanhoso} />
         <Stack.Screen name="Footer" component={Footer} />
         <Stack.Screen name="ChiTietHoSoXuLy" component={Chitiethosoxuly} />
-
         <Stack.Screen
           name="CBXL_DanhSachThuTuc"
           component={CBXL_DanhSachThuTuc}

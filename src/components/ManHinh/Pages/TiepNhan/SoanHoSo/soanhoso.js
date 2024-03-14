@@ -104,7 +104,7 @@ const Soanhoso = props => {
       MC_TTHC_GV_GuiYeuCau_MoTaTTPheDuyetBGH: 'string',
       MC_TTHC_GV_GuiYeuCau_NguonTiepNhan: TableData1.MC_TTHC_GV_NguonTiepNhan,
     };
-    
+
     try {
       const response = await axios.post(apiPhucKhao, postdata, {
         headers: {
@@ -241,7 +241,7 @@ const Soanhoso = props => {
       <ModalThongBao
         visible={showModal4}
         onClose={handleCloseModal4}
-        message="Bạn chưa nhập số lượng bản"
+        message="Bạn chưa nhập số lượng bản!"
       />
       <ModalThongBao
         visible={showModal5}
@@ -277,6 +277,7 @@ const Soanhoso = props => {
               </Text>
             </View>
           </View>
+
           <View style={[styles.viewngang]}>
             <View style={{width: '40%'}}>
               <Text style={styles.TextBold}>Đơn vị tiếp nhận</Text>
@@ -288,6 +289,7 @@ const Soanhoso = props => {
               </Text>
             </View>
           </View>
+
           <View style={[styles.viewngang]}>
             <View style={{width: '40%'}}>
               <Text style={styles.TextBold}>Nơi trả kết quả</Text>
@@ -299,6 +301,7 @@ const Soanhoso = props => {
               </Text>
             </View>
           </View>
+
           <View style={[styles.viewngang]}>
             <View style={{width: '40%', justifyContent: 'center'}}>
               <Text style={styles.TextBold}>Email liên hệ</Text>
@@ -320,6 +323,7 @@ const Soanhoso = props => {
               </View>
             </View>
           </View>
+
           <View style={[styles.viewngang]}>
             <View style={{width: '40%', justifyContent: 'center'}}>
               <Text style={styles.TextBold}>Số điện thoại liên hệ</Text>
@@ -347,6 +351,7 @@ const Soanhoso = props => {
               </View>
             </View>
           </View>
+
           <Text style={[styles.TextBold, {marginTop: 10}]}>
             Nội dung yêu cầu:
           </Text>
@@ -363,6 +368,7 @@ const Soanhoso = props => {
             multiline={true}
             placeholder="Nhập nội dung"
           />
+
           <View style={[styles.viewngang]}>
             <View style={{width: '40%', justifyContent: 'center'}}>
               <Text style={styles.TextBold}>Nhập số lượng bản</Text>
@@ -384,6 +390,7 @@ const Soanhoso = props => {
               </View>
             </View>
           </View>
+
           <Text style={[styles.TextBold, {marginTop: 10}]}>
             Danh sách giấy tờ kèm theo:
           </Text>
@@ -406,6 +413,7 @@ const Soanhoso = props => {
                   ]}>
                   <Text style={[styles.TextBold, {color: 'white'}]}>STT</Text>
                 </DataTable.Title>
+
                 <DataTable.Title
                   style={[
                     {
@@ -417,6 +425,7 @@ const Soanhoso = props => {
                     Tên giấy tờ
                   </Text>
                 </DataTable.Title>
+
                 <DataTable.Title
                   style={[
                     {
@@ -428,6 +437,7 @@ const Soanhoso = props => {
                     Bản chính
                   </Text>
                 </DataTable.Title>
+
                 <DataTable.Title
                   style={[
                     {
@@ -439,6 +449,7 @@ const Soanhoso = props => {
                     Bản sao
                   </Text>
                 </DataTable.Title>
+
                 <DataTable.Title
                   style={[
                     {
@@ -450,6 +461,7 @@ const Soanhoso = props => {
                     Bắt buộc
                   </Text>
                 </DataTable.Title>
+
                 <DataTable.Title
                   style={[
                     {
@@ -462,6 +474,7 @@ const Soanhoso = props => {
                   </Text>
                 </DataTable.Title>
               </DataTable.Header>
+
               {TableData2.map((td, index) => (
                 <DataTable.Row key={index}>
                   <DataTable.Cell
@@ -475,6 +488,7 @@ const Soanhoso = props => {
                       {td.MC_TTHC_GV_ThanhPhanHoSo_STT}
                     </Text>
                   </DataTable.Cell>
+
                   <DataTable.Cell
                     style={[
                       styles.CellTable,
@@ -487,6 +501,7 @@ const Soanhoso = props => {
                       Xem/tải mẫu: {td.MC_TTHC_GV_ThanhPhanHoSo_TenFile}
                     </Text>
                   </DataTable.Cell>
+
                   <DataTable.Cell
                     style={[
                       styles.CellTable,
@@ -498,6 +513,7 @@ const Soanhoso = props => {
                       {td.MC_TTHC_GV_ThanhPhanHoSo_BanChinh}
                     </Text>
                   </DataTable.Cell>
+
                   <DataTable.Cell
                     style={[
                       styles.CellTable,
@@ -509,6 +525,7 @@ const Soanhoso = props => {
                       {td.MC_TTHC_GV_ThanhPhanHoSo_BanSao}
                     </Text>
                   </DataTable.Cell>
+
                   <DataTable.Cell
                     style={[
                       styles.CellTable,
@@ -532,6 +549,7 @@ const Soanhoso = props => {
                       />
                     </Text>
                   </DataTable.Cell>
+
                   <DataTable.Cell
                     style={[
                       styles.CellTable,
@@ -590,6 +608,7 @@ const Soanhoso = props => {
           </ScrollView>
         </ScrollView>
       </View>
+
       <View style={styles.footer}>
         <View style={[styles.buttonHuy, {marginLeft: 30}]}>
           <TouchableOpacity
@@ -610,40 +629,27 @@ const Soanhoso = props => {
           <TouchableOpacity
             style={[styles.touchableOpacity, {backgroundColor: '#245d7c'}]}
             onPress={() => {
-                if(email==='')
-                {
-                    handleModalPress2();
-                }else if(!validateEmail(email))
-                {
-                  handleModalPress7();
-                }else
-                 if(sdt==='')
-                {
-                  handleModalPress6();
-                }else if(!validateSDT(sdt))
-                {
-                  handleModalPress8();
-                }
-                else if(nd==='')
-                {
-                  handleModalPress3();
-                }else if(sl==='')
-                {
-                  handleModalPress4();
-                }else if(TableData2.length===0)
-                {
-                  PostYeuCau();
-                }
-               else {
-                if(base64Content==='')
-                {
+              if (email === '') {
+                handleModalPress2();
+              } else if (!validateEmail(email)) {
+                handleModalPress7();
+              } else if (sdt === '') {
+                handleModalPress6();
+              } else if (!validateSDT(sdt)) {
+                handleModalPress8();
+              } else if (nd === '') {
+                handleModalPress3();
+              } else if (sl === '') {
+                handleModalPress4();
+              } else if (TableData2.length === 0) {
+                PostYeuCau();
+              } else {
+                if (base64Content === '') {
                   handleModalPress5();
-                }
-                else{
+                } else {
                   PostYeuCau();
                 }
-                }
-              
+              }
             }}>
             <Text style={{color: '#ffffff', fontSize: 19}}>Nộp hồ sơ</Text>
           </TouchableOpacity>

@@ -27,31 +27,63 @@ const Chitietthutuc = props => {
   const [tabledata, setTableData] = useState({});
   const [tabletphs, settphs] = useState([]);
   const [tablettth, setttth] = useState([]);
+
+  //Retry
+  const retry = async (func, maxAttempts = 3, delay = 2000, backoff = 2) => {
+    let attempt = 1;
+    while (attempt <= maxAttempts) {
+      try {
+        const result = await func();
+        return result;
+      } catch (error) {
+        if (attempt === maxAttempts) {
+          throw error;
+        }
+        console.log(
+          `Lần ${attempt} thất bại. Đang thử lại trong ${delay / 2000} giây...`,
+        );
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay *= backoff;
+        attempt++;
+      }
+    }
+  };
+
   const getAPI = `https://apiv2.uneti.edu.vn/api/SP_MC_TTHC_GV_TiepNhan/LoadChiTietHoSoTTHC_ByID`;
   const getDataTable = async idGuiYC => {
+    const callApi = async idGuiYC => {
+      try {
+        const response = await axios.get(getAPI, {
+          params: {MC_TTHC_GV_IDTTHC: idGuiYC},
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        const newTableData = response.data.ThongTinHoSo;
+        const newTableData1 = response.data.ThanhPhanHoSo;
+        const newTableData2 = response.data.TrinhTuThucHien;
+
+        setTableData(newTableData);
+        settphs(newTableData1);
+        setttth(newTableData2);
+
+        TableData1 = newTableData;
+        TableData2 = newTableData1;
+        TableData3 = newTableData2;
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
     try {
-      const response = await axios.get(getAPI, {
-        params: {MC_TTHC_GV_IDTTHC: idGuiYC},
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const newTableData = response.data.ThongTinHoSo;
-      TableData1 = newTableData;
-
-      const newTableData1 = response.data.ThanhPhanHoSo;
-      TableData2 = newTableData1;
-      const newTableData2 = response.data.TrinhTuThucHien;
-      TableData3 = newTableData2;
-      setTableData(newTableData);
-      settphs(newTableData1);
-      setttth(newTableData2);
+      await retry(() => callApi(idGuiYC));
     } catch (error) {
       console.error(error);
     }
   };
+
   useEffect(() => {
     const idGuiYC = props.route.params.IDthutuc;
     getDataTable(idGuiYC);
@@ -172,6 +204,7 @@ const Chitietthutuc = props => {
                     ]}>
                     <Text style={[styles.TextBold, {color: 'white'}]}>STT</Text>
                   </DataTable.Title>
+
                   <DataTable.Title
                     style={[
                       {
@@ -183,6 +216,7 @@ const Chitietthutuc = props => {
                       Tên giấy tờ
                     </Text>
                   </DataTable.Title>
+
                   <DataTable.Title
                     style={[
                       {
@@ -194,6 +228,7 @@ const Chitietthutuc = props => {
                       Mẫu hồ sơ/Hướng dẫn
                     </Text>
                   </DataTable.Title>
+
                   <DataTable.Title
                     style={[
                       {
@@ -205,6 +240,7 @@ const Chitietthutuc = props => {
                       Bản chính
                     </Text>
                   </DataTable.Title>
+
                   <DataTable.Title
                     style={[
                       {
@@ -216,6 +252,7 @@ const Chitietthutuc = props => {
                       Bản sao
                     </Text>
                   </DataTable.Title>
+
                   <DataTable.Title
                     style={[
                       {
@@ -242,6 +279,7 @@ const Chitietthutuc = props => {
                         {td.MC_TTHC_GV_ThanhPhanHoSo_STT}
                       </Text>
                     </DataTable.Cell>
+
                     <DataTable.Cell
                       style={[
                         styles.CellTableFirst,
@@ -253,6 +291,7 @@ const Chitietthutuc = props => {
                         {td.MC_TTHC_GV_ThanhPhanHoSo_TenGiayTo}
                       </Text>
                     </DataTable.Cell>
+
                     <DataTable.Cell
                       style={[
                         styles.CellTableFirst,
@@ -264,6 +303,7 @@ const Chitietthutuc = props => {
                         Xem mẫu hướng dẫn: {td.MC_TTHC_GV_ThanhPhanHoSo_TenFile}
                       </Text>
                     </DataTable.Cell>
+
                     <DataTable.Cell
                       style={[
                         styles.CellTableFirst,
@@ -275,6 +315,7 @@ const Chitietthutuc = props => {
                         {td.MC_TTHC_GV_ThanhPhanHoSo_BanChinh}
                       </Text>
                     </DataTable.Cell>
+
                     <DataTable.Cell
                       style={[
                         styles.CellTableFirst,
@@ -286,6 +327,7 @@ const Chitietthutuc = props => {
                         {td.MC_TTHC_GV_ThanhPhanHoSo_BanSao}
                       </Text>
                     </DataTable.Cell>
+
                     <DataTable.Cell
                       style={[
                         styles.CellTableFirst,
@@ -314,6 +356,7 @@ const Chitietthutuc = props => {
               </DataTable>
             </ScrollView>
           </View>
+
           <View style={[styles.viewngang, {marginTop: 20}]}>
             <View style={{width: '40%'}}>
               <Text style={styles.TextBold}>Số bộ hồ sơ</Text>
@@ -325,6 +368,7 @@ const Chitietthutuc = props => {
               </Text>
             </View>
           </View>
+
           <View style={styles.viewngang}>
             <View style={{width: '44%'}}>
               <Text style={styles.TextBold}>Tổng thời gian giải quyết</Text>
@@ -360,6 +404,7 @@ const Chitietthutuc = props => {
                       Bước
                     </Text>
                   </DataTable.Title>
+
                   <DataTable.Title
                     style={[
                       {
@@ -371,6 +416,7 @@ const Chitietthutuc = props => {
                       Tên công việc
                     </Text>
                   </DataTable.Title>
+
                   <DataTable.Title
                     style={[
                       {
@@ -382,6 +428,7 @@ const Chitietthutuc = props => {
                       Cách thức thực hiện
                     </Text>
                   </DataTable.Title>
+
                   <DataTable.Title
                     style={[
                       {
@@ -393,6 +440,7 @@ const Chitietthutuc = props => {
                       Địa chỉ tiếp nhận, trả hồ sơ
                     </Text>
                   </DataTable.Title>
+
                   <DataTable.Title
                     style={[
                       {
@@ -404,6 +452,7 @@ const Chitietthutuc = props => {
                       Đơn vị thực hiện được ủy quyền thực hiện
                     </Text>
                   </DataTable.Title>
+
                   <DataTable.Title
                     style={[
                       {
@@ -415,6 +464,7 @@ const Chitietthutuc = props => {
                       Đơn vị phối hợp
                     </Text>
                   </DataTable.Title>
+
                   <DataTable.Title
                     style={[
                       {
@@ -426,6 +476,7 @@ const Chitietthutuc = props => {
                       Thời gian(ngày)
                     </Text>
                   </DataTable.Title>
+
                   <DataTable.Title
                     style={[
                       {
@@ -582,13 +633,8 @@ const Chitietthutuc = props => {
           </View>
         </ScrollView>
       </View>
-      <View style={styles.footer}>
-        <View style={[styles.buttonHuy, {marginLeft: 30}]}>
-          <TouchableOpacity style={styles.touchableOpacity} onPress={() => {}}>
-            <Text style={{color: 'black', fontSize: 19}}>Hủy</Text>
-          </TouchableOpacity>
-        </View>
 
+      <View style={styles.footer}>
         <View style={[styles.buttonHuy, {marginRight: 30}]}>
           <TouchableOpacity
             style={[styles.touchableOpacity, {backgroundColor: '#245d7c'}]}
@@ -610,22 +656,22 @@ const styles = StyleSheet.create({
     width: getWidth,
     height: getHeight,
   },
+
   body: {
     height: '67%',
     backgroundColor: '#ffffff',
     marginHorizontal: 5,
     marginBottom: 10,
   },
+
   footer: {
     height: '10%',
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     backgroundColor: '#ffffff',
+    justifyContent: 'center',
   },
-  ViewBottom: {
-    height: '%',
-  },
+
   touchableOpacity: {
     width: '100%',
     height: '100%',
@@ -633,15 +679,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 40,
   },
+
   containerTable: {
     marginTop: 20,
   },
+
   viewngang: {
     flexDirection: 'row',
     width: '100%',
     height: 'auto',
     marginTop: 10,
   },
+
   TitleTable: {
     backgroundColor: '#2e6b8b',
     justifyContent: 'center',
@@ -649,6 +698,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+
   CellTable: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -664,6 +714,7 @@ const styles = StyleSheet.create({
     elevation: 5,
     marginTop: 10,
   },
+  
   CellTableFirst: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -678,6 +729,7 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 5,
   },
+
   buttonHuy: {
     width: '40%',
     height: 40,
@@ -689,11 +741,13 @@ const styles = StyleSheet.create({
     shadowOffset: {width: 0, height: 2},
     elevation: 5,
   },
+
   TextNormal: {
     fontSize: 16,
     color: 'black',
     textAlign: 'center',
   },
+  
   TextBold: {
     fontSize: 16,
     fontWeight: 'bold',

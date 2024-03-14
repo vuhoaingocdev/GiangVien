@@ -32,7 +32,7 @@ import {
   ThongTinGiangVien,
 } from '../../../../../api/GetThongTin/ThongTinGiangVien';
 export var IDthutuc;
-const Dieu_Kien_Chua_Tiep_Nhan = 'Chưa tiếp nhận';
+const Dieu_Kien_Da_Hoan_Thanh = 'Đã hoàn thành';
 
 const CBXL_DanhSachThuTuc = props => {
   const [openModalThongTinHoSo, setOpenModalThongTinHoSo] = useState(false);
@@ -56,12 +56,33 @@ const CBXL_DanhSachThuTuc = props => {
   const [viTri, setViTri] = useState(0);
   const soLuongBanGhiHienThi = 10;
 
+  //Retry
+  const retry = async (func, maxAttempts = 3, delay = 2000, backoff = 2) => {
+    let attempt = 1;
+    while (attempt <= maxAttempts) {
+      try {
+        const result = await func();
+        return result;
+      } catch (error) {
+        if (attempt === maxAttempts) {
+          throw error;
+        }
+        console.log(
+          `Lần ${attempt} thất bại. Đang thử lại trong ${delay / 2000} giây...`,
+        );
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay *= backoff;
+        attempt++;
+      }
+    }
+  };
+
   //Lấy dữ liệu từ api in ra danh sách thủ tục
   const [dataThuTuc, setDataThuTuc] = useState([]);
   const apiGetDuLieuDanhSachThuTuc =
     'https://apiv2.uneti.edu.vn/api/SP_MC_TTHC_GV_TiepNhan/TimKiemThuTuc?MC_TTHC_GV_DieuKienLoc=MaThuTuc';
   const getMangDanhSachThuTuc = async () => {
-    try {
+    const callApi = async () => {
       const response = await axios.get(apiGetDuLieuDanhSachThuTuc, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -105,8 +126,11 @@ const CBXL_DanhSachThuTuc = props => {
       } else {
         setDataThuTuc([]);
       }
+    };
+    try {
+      await retry(callApi);
     } catch (error) {
-      console.error('Get danh sách thủ tục', error);
+      console.error('CBXL_Danh sach thu tuc - Get danh sách thủ tục', error);
     }
   };
 
@@ -115,7 +139,7 @@ const CBXL_DanhSachThuTuc = props => {
   const [danhSachHoSoGuiLenGoc, setDanhSachHoSoGuiLenGoc] = useState([]);
   const apiGetDSHSGL = `https://apiv2.uneti.edu.vn/api/SP_MC_TTHC_GV_TiepNhan/GuiYeuCau_Load_DuLieu_ByMaNhanSu?DieuKienLoc=0&MaNhanSu=${maGiangVien}`;
   const getMangDanhSachHoSoGuiLen = async () => {
-    try {
+    const callApi1 = async () => {
       const response = await axios.get(apiGetDSHSGL, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -143,8 +167,11 @@ const CBXL_DanhSachThuTuc = props => {
         setDanhSachHoSoGuiLen(mangDanhSachHoSoGuiLen);
         setDanhSachHoSoGuiLenGoc(mangDanhSachHoSoGuiLen);
       }
+    };
+    try {
+      await retry(callApi1);
     } catch (error) {
-      console.error('Gét mảng hồ sơ gửi lên', error);
+      console.error('CBXL_Danh sach thu tuc - Gét mảng hồ sơ gửi lên', error);
     }
   };
 
@@ -153,9 +180,9 @@ const CBXL_DanhSachThuTuc = props => {
     if (dieuKien === '') {
       return danhSachHoSoGuiLen;
     }
-    if (dieuKien === Dieu_Kien_Chua_Tiep_Nhan) {
+    if (dieuKien === Dieu_Kien_Da_Hoan_Thanh) {
       return danhSachHoSoGuiLen.filter(
-        item => item.TrangThai !== 'Chưa tiếp nhận',
+        item => item.TrangThai !== Dieu_Kien_Da_Hoan_Thanh,
       );
     }
 
@@ -164,7 +191,7 @@ const CBXL_DanhSachThuTuc = props => {
 
   //Lọc những thủ tục có trạng thái là đã hoàn thành
   const ThuTucChuaHoanThanh = () => {
-    setDieuKien(Dieu_Kien_Chua_Tiep_Nhan);
+    setDieuKien(Dieu_Kien_Da_Hoan_Thanh);
   };
 
   const TheoDoiHoSo = () => {
@@ -885,6 +912,7 @@ const CBXL_DanhSachThuTuc = props => {
                         elevation: 7,
                       }}
                       onPress={() => {
+                        setOpenModalThongTinHoSo(false);
                         props.navigation.navigate('ChiTietHoSoXuLy');
                       }}>
                       <Text
@@ -1414,7 +1442,7 @@ const styles = StyleSheet.create({
   },
 
   chiTietDanhSachHoSo: {
-    width: 392,
+    //width: 392,
     backgroundColor: '#ffffff',
     flexDirection: 'row',
     height: 67,

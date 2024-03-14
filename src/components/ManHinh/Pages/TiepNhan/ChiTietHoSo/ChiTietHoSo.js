@@ -68,9 +68,29 @@ const ChiTietHoSo = props => {
     return () => clearTimeout(timer);
   }, [thongTinHoSo, quaTrinhXuLy, chiTietTiepNhanHoSo]);
 
+  const retry = async (func, maxAttempts = 3, delay = 1000, backoff = 2) => {
+    let attempt = 1;
+    while (attempt <= maxAttempts) {
+      try {
+        const result = await func();
+        return result;
+      } catch (error) {
+        if (attempt === maxAttempts) {
+          throw error;
+        }
+        console.log(
+          `Lần ${attempt} thất bại. Đang thử lại trong ${delay / 2000} giây...`,
+        );
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay *= backoff;
+        attempt++;
+      }
+    }
+  };
+
   const apiGetThongTinHoSo = `https://apiv2.uneti.edu.vn/api/SP_MC_TTHC_GV_TiepNhan/GuiYeuCau_Load_R_Para_File`;
   const getThongTinHoSo = async idGuiYC => {
-    try {
+    const callApi = async idGuiYC => {
       const response = await axios.get(apiGetThongTinHoSo, {
         params: {MC_TTHC_GV_GuiYeuCau_ID: idGuiYC},
         headers: {
@@ -78,7 +98,6 @@ const ChiTietHoSo = props => {
           'Content-Type': 'application/json',
         },
       });
-
       if (
         response.status !== 400 &&
         response.data &&
@@ -97,6 +116,10 @@ const ChiTietHoSo = props => {
       } else {
         setThongTinHoSo([]);
       }
+    };
+
+    try {
+      await retry(() => callApi(idGuiYC));
     } catch (error) {
       console.error(error);
     }
@@ -104,7 +127,7 @@ const ChiTietHoSo = props => {
 
   const apiGetQuaTrinhXuLy = `https://apiv2.uneti.edu.vn/api/SP_MC_TTHC_GV_TiepNhan/GuiYeuCau_TrangThai_TheoDoi_DeNghi_Load_Para`;
   const getQuaTrinhXuLy = async idGuiYC => {
-    try {
+    const callApi1 = async idGuiYC => {
       const response = await axios.get(apiGetQuaTrinhXuLy, {
         params: {MC_TTHC_GV_GuiYeuCau_ID: idGuiYC},
         headers: {
@@ -128,6 +151,9 @@ const ChiTietHoSo = props => {
       } else {
         setQuaTrinhXuLy([]);
       }
+    };
+    try {
+      await retry(() => callApi1(idGuiYC));
     } catch (error) {
       console.error(error);
     }
@@ -135,7 +161,7 @@ const ChiTietHoSo = props => {
 
   const apiGetChiTietTiepNhanHoSo = `https://apiv2.uneti.edu.vn/api/SP_MC_TTHC_GV_TiepNhan/GuiYeuCau_NguoiDung_TheoDoi_QuyTrinhXuLy_Load_Para`;
   const getChiTietTiepNhanHoSo = async (idGuiYC, getTrangThai1) => {
-    try {
+    const callApi2 = async (idGuiYC, getTrangThai1) => {
       const response = await axios.get(apiGetChiTietTiepNhanHoSo, {
         params: {
           MC_TTHC_GV_GuiYeuCau_ID: idGuiYC,
@@ -164,6 +190,9 @@ const ChiTietHoSo = props => {
       } else {
         setChiTietTiepNhanHoSo([]);
       }
+    };
+    try {
+      await retry(() => callApi2(idGuiYC, getTrangThai1));
     } catch (error) {
       console.error(error);
     }
@@ -578,7 +607,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 15,
   },
-  
+
   TitleText: {
     color: 'black',
     fontSize: 21,

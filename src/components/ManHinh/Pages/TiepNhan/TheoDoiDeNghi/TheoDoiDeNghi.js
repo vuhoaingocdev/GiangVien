@@ -22,17 +22,38 @@ const TheoDoiDeNghi = props => {
   const [danhSachHoSoDaGui, setDanhSachHoSoDaGui] = useState([]);
   const apiGetDanhDachHoSoDaGui = `https://apiv2.uneti.edu.vn/api/SP_MC_TTHC_GV_TiepNhan/GuiYeuCau_Load_ByMaNhanSu?MC_TTHC_GV_GuiYeuCau_MaNhanSu=${maGiangVien}`;
 
-  const getMangDanSachHoSoDaGiui = async () => {
-    try {
+  //Retry
+  const retry = async (func, maxAttempts = 3, delay = 2000, backoff = 2) => {
+    let attempt = 1;
+    while (attempt <= maxAttempts) {
+      try {
+        const result = await func();
+        return result;
+      } catch (error) {
+        if (attempt === maxAttempts) {
+          throw error;
+        }
+        console.log(
+          `Lần ${attempt} thất bại. Đang thử lại trong ${delay / 2000} giấy...`,
+        );
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay *= backoff;
+        attempt++;
+      }
+    }
+  };
+
+  //Gét mảng danh sách hồ sơ đã gửi
+  const getMangDanhSachHoSoDaGui = async () => {
+    const apiCall = async () => {
       const response = await axios.get(apiGetDanhDachHoSoDaGui, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
-
       if (
-        response.status != 400 &&
+        response.status !== 400 &&
         response.data &&
         response.data.body &&
         response.data.body.length > 0
@@ -48,11 +69,16 @@ const TheoDoiDeNghi = props => {
       } else {
         setDanhSachHoSoDaGui([]);
       }
+    };
+
+    try {
+      await retry(apiCall);
     } catch (error) {
-      console.error(error);
+      console.error('API call failed after multiple attempts:', error);
     }
   };
 
+  //Định dạng ngày/ tháng/ năm
   const formatDate = dateString => {
     const date = new Date(dateString);
     const day = date.getDate();
@@ -64,7 +90,7 @@ const TheoDoiDeNghi = props => {
   };
 
   useEffect(() => {
-    getMangDanSachHoSoDaGiui();
+    getMangDanhSachHoSoDaGui();
   }, []);
 
   return (

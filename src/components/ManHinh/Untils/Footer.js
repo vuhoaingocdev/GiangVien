@@ -74,7 +74,7 @@ const Footer = () => {
             alignItems: 'center',
           }}
           onPress={() => {
-            navigation.navigate('TrangChu');
+            navigation.navigate('CBXL_DanhSachThuTuc');
           }}>
           <Image
             resizeMode="stretch"

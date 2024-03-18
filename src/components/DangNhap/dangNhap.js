@@ -371,6 +371,9 @@ function DangNhap(props) {
         <Text style={[styles.text, styles.text2]}>
           Tel: (024)38621505 - (0228)3848706
         </Text>
+        <Text style={[{color: 'black', fontSize: 13}, styles.text2]}>
+          Copyright Trường Đại học Kinh tế - Kỹ thuật Công nghiệp
+        </Text>
 
         <View style={styles.viewfooter}>
           <TouchableOpacity onPress={openWebSite}>
@@ -417,6 +420,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 20,
   },
+
   viewTextInput: {
     marginTop: 60,
   },
@@ -443,6 +447,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+
   touchableOpacity: {
     backgroundColor: '#245d7c',
     width: 110,
@@ -461,8 +466,8 @@ const styles = StyleSheet.create({
 
   footer: {
     width: '100%',
-    height: '17%',
-    marginTop: 55,
+    height: '20%',
+    marginTop: 35,
     alignItems: 'center',
   },
 
@@ -499,6 +504,7 @@ const styles = StyleSheet.create({
   text2: {
     marginTop: 1.5,
   },
+
   showPass: {
     position: 'absolute',
     right: 0,

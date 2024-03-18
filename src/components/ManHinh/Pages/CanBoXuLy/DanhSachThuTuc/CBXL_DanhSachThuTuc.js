@@ -32,6 +32,7 @@ import {
   ThongTinGiangVien,
 } from '../../../../../api/GetThongTin/ThongTinGiangVien';
 export var IDthutuc;
+export var MangQuyen = [];
 const Dieu_Kien_Da_Hoan_Thanh = 'Đã hoàn thành';
 
 const CBXL_DanhSachThuTuc = props => {
@@ -57,7 +58,7 @@ const CBXL_DanhSachThuTuc = props => {
   const soLuongBanGhiHienThi = 10;
 
   //Retry
-  const retry = async (func, maxAttempts = 3, delay = 2000, backoff = 2) => {
+  const retry = async (func, maxAttempts = 3, delay = 1000, backoff = 2) => {
     let attempt = 1;
     while (attempt <= maxAttempts) {
       try {
@@ -68,7 +69,7 @@ const CBXL_DanhSachThuTuc = props => {
           throw error;
         }
         console.log(
-          `Lần ${attempt} thất bại. Đang thử lại trong ${delay / 2000} giây...`,
+          `Lần ${attempt} thất bại. Đang thử lại trong ${delay / 1000} giây...`,
         );
         await new Promise(resolve => setTimeout(resolve, delay));
         delay *= backoff;
@@ -359,6 +360,7 @@ const CBXL_DanhSachThuTuc = props => {
   useEffect(() => {
     if (dataGiangVien.HT_GROUPUSER_ID) {
       setMangQuyen(dataGiangVien.HT_GROUPUSER_ID);
+      MangQuyen = dataGiangVien.HT_GROUPUSER_ID;
     }
     return () => {
       setMangQuyen([]);
@@ -727,7 +729,7 @@ const CBXL_DanhSachThuTuc = props => {
               </View>
             </ScrollView>
           ) : (
-            <ScrollView style={{height: 350, overflow: 'hidden'}}>
+            <ScrollView style={{height: 300, overflow: 'hidden'}}>
               {/* Danh sách các đề nghị */}
               <View style={{alignItems: 'center'}}>
                 <View style={styles.danhSachThuTucTieuDe1}>
@@ -761,7 +763,9 @@ const CBXL_DanhSachThuTuc = props => {
                       }}>
                       <View style={styles.chiTietDanhSachHoSo} key={index}>
                         <View style={styles.viewChiTietSTT}>
-                          <Text style={styles.textDuLieuHoSo}>{index + 1}</Text>
+                          <Text style={styles.textDuLieuHoSo}>
+                            {index + 1 + viTri}
+                          </Text>
                         </View>
                         <View style={styles.viewChiTietTenHoSo}>
                           <Text style={styles.textDuLieuHoSo}>
@@ -913,7 +917,9 @@ const CBXL_DanhSachThuTuc = props => {
                       }}
                       onPress={() => {
                         setOpenModalThongTinHoSo(false);
-                        props.navigation.navigate('ChiTietHoSoXuLy');
+                        props.navigation.navigate('ChiTietHoSoXuLy', {
+                          IDGuiYeuCau: thongTinHoSoModal.IDGuiYeuCau,
+                        });
                       }}>
                       <Text
                         style={{

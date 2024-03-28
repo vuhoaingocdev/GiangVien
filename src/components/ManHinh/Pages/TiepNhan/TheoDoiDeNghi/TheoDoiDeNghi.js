@@ -20,6 +20,7 @@ import {maGiangVien} from '../../../../DangNhap/dangNhap';
 
 const TheoDoiDeNghi = props => {
   const [danhSachHoSoDaGui, setDanhSachHoSoDaGui] = useState([]);
+  const [soLuongHoSoGuiLen, setSoLuongHoSoGuiLen] = useState(0);
   const apiGetDanhDachHoSoDaGui = `https://apiv2.uneti.edu.vn/api/SP_MC_TTHC_GV_TiepNhan/GuiYeuCau_Load_ByMaNhanSu?MC_TTHC_GV_GuiYeuCau_MaNhanSu=${maGiangVien}`;
 
   //Retry
@@ -66,8 +67,10 @@ const TheoDoiDeNghi = props => {
         }));
 
         setDanhSachHoSoDaGui(mangDanhSach);
+        setSoLuongHoSoGuiLen(mangDanhSach.length);
       } else {
         setDanhSachHoSoDaGui([]);
+        setSoLuongHoSoGuiLen(0);
       }
     };
 
@@ -160,7 +163,7 @@ const TheoDoiDeNghi = props => {
         </ScrollView>
       </View>
 
-      <Footer />
+      <Footer soLuongThuTuc={soLuongHoSoGuiLen} />
     </SafeAreaView>
   );
 };

@@ -1,11 +1,12 @@
 import React, {useState} from 'react';
-import {View, TouchableOpacity, Image, Dimensions} from 'react-native';
+import {View, TouchableOpacity, Image, Dimensions, Text} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 const getWidth = Dimensions.get('window').width;
 const getHeight = Dimensions.get('window').height;
 import ModalThongBao from './ModalThongBao';
 
-const Footer = () => {
+const Footer = props => {
+  const {soLuongThuTuc} = props;
   const navigation = useNavigation();
   const [showModal, setShowModal] = useState(false);
 
@@ -59,10 +60,27 @@ const Footer = () => {
           onPress={() => {
             navigation.navigate('TheoDoiDeNghi');
           }}>
+          <View
+            style={{
+              width: 20,
+              height: 20,
+              borderRadius: 20,
+              position: 'absolute',
+              top: 7,
+              right: 41,
+              justifyContent: 'center',
+              alignItems: 'center',
+              backgroundColor: 'red',
+              zIndex: 1,
+            }}>
+            <Text style={{color: '#ffffff', fontSize: 15}}>
+              {soLuongThuTuc}
+            </Text>
+          </View>
           <Image
             resizeMode="stretch"
             source={require('../../../images/notification.png')}
-            style={{width: 33, height: 33}}
+            style={{width: 33, height: 33, zIndex: 0}}
           />
         </TouchableOpacity>
 

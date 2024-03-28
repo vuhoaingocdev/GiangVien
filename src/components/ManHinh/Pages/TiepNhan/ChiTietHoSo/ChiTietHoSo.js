@@ -20,6 +20,7 @@ import HeaderBack from '../../../Untils/HeaderBack';
 import Footer from '../../../Untils/Footer';
 import axios from 'axios';
 import {token} from '../../../../DangNhap/dangNhap';
+import {maGiangVien} from '../../../../DangNhap/dangNhap';
 import moment from 'moment';
 
 const ChiTietHoSo = props => {
@@ -197,6 +198,48 @@ const ChiTietHoSo = props => {
       console.error(error);
     }
   };
+
+  //Số lượng hồ sơ gửi lên
+  //Lấy số lượng thủ tục gửi lên
+  const [soLuongThuGuiLen, setSoLuongThuTucGuiLen] = useState(0);
+  const apiSoLuongThuGuiLen = `https://apiv2.uneti.edu.vn/api/SP_MC_TTHC_GV_TiepNhan/GuiYeuCau_Load_ByMaNhanSu?MC_TTHC_GV_GuiYeuCau_MaNhanSu=${maGiangVien}`;
+  const getSoLuong = async () => {
+    const apiCall = async () => {
+      const response = await axios.get(apiSoLuongThuGuiLen, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (
+        response.status !== 400 &&
+        response.data &&
+        response.data.body &&
+        response.data.body.length > 0
+      ) {
+        const mangDanhSach = response.data.body.map(item => ({
+          idGuiYeuCau: item.MC_TTHC_GV_GuiYeuCau_ID,
+          tenThuTuc: item.MC_TTHC_GV_TenThuTuc,
+          ngayGui: item.MC_TTHC_GV_GuiYeuCau_NgayGui,
+          trangThai: item.MC_TTHC_GV_TrangThai_TenTrangThai,
+        }));
+
+        setSoLuongThuTucGuiLen(mangDanhSach.length);
+      } else {
+        setSoLuongThuTucGuiLen(0);
+      }
+    };
+
+    try {
+      await retry(apiCall);
+    } catch (error) {
+      console.error('API call failed after multiple attempts:', error);
+    }
+  };
+
+  useEffect(() => {
+    getSoLuong();
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -442,7 +485,7 @@ const ChiTietHoSo = props => {
         </View>
       </View>
 
-      <Footer />
+      <Footer soLuongThuTuc={soLuongThuGuiLen} />
     </SafeAreaView>
   );
 };

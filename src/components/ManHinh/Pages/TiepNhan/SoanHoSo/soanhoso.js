@@ -32,6 +32,7 @@ import {
   ThongTinGiangVien,
   getThongTinhGiangVien,
 } from '../../../../../api/GetThongTin/ThongTinGiangVien';
+import Index from '../..';
 const Soanhoso = props => {
   const [checkboxColor, setCheckboxColor] = useState('#245d7c');
   const [checkboxUncheckedColor, setCheckboxUncheckedColor] = useState('gray');
@@ -40,7 +41,8 @@ const Soanhoso = props => {
   const [sdt, setsdt] = useState('');
   const [nd, setnd] = useState('');
   const [sl, setsl] = useState('');
-  const [FileName, setFileName] = useState('');
+  const [FileName, setFileName] = useState([]);
+
   const readFileAsBase64 = async fileUri => {
     try {
       const base64Data = await RNFS.readFile(fileUri, 'base64');
@@ -52,17 +54,27 @@ const Soanhoso = props => {
   };
 
   //Chọn file
-  const chooseFile = async () => {
+  const chooseFile = async index => {
     try {
       const res = await DocumentPicker.pick({
         type: [DocumentPicker.types.pdf, DocumentPicker.types.images],
         allowMultiSelection: true,
       });
-      console.log(res[0].uri);
-      setFileName(res[0].name);
-      const base64Content1 = await readFileAsBase64(res[0].uri);
-      setBase64('data:' + res[0].type + ';base64,' + base64Content1);
-      console.log(base64Content);
+      console.log(res[index].uri);
+      setFileName(FileName => FileName.push(res[index].name));
+      const base64Content1 = await readFileAsBase64(res[index].uri);
+      setBase64('data:' + res[index].type + ';base64,' + base64Content1);
+      setdatafile(dataFile =>
+        dataFile.push({
+          MC_TTHC_GV_ThanhPhanHoSo_GuiYeuCau_IDGoc:
+            TableData1.MC_TTHC_GV_GuiYeuCau_YeuCau_ID,
+          MC_TTHC_GV_ThanhPhanHoSo_GuiYeuCau_IDThanhPhanHoSo: 1,
+          MC_TTHC_GV_ThanhPhanHoSo_GuiYeuCau_DataFile: base64Content,
+          MC_TTHC_GV_ThanhPhanHoSo_GuiYeuCau_TenFile: res[index].name,
+        }),
+      );
+
+      //console.log(base64Content);
     } catch (err) {
       if (DocumentPicker.isCancel(err)) {
         console.log('Hủy chọn tệp');
@@ -74,7 +86,7 @@ const Soanhoso = props => {
   useEffect(() => {
     getThongTinhGiangVien();
   }, []);
-  var apiPhucKhao =
+  const apiPhucKhao =
     'https://apiv2.uneti.edu.vn/api/SP_MC_TTHC_GV_TiepNhan/GuiYeuCau_Add_Para';
   const PostYeuCau = async () => {
     var postdata = {
@@ -82,7 +94,7 @@ const Soanhoso = props => {
       MC_TTHC_GV_GuiYeuCau_NhanSuGui_Email: email,
       MC_TTHC_GV_GuiYeuCau_NhanSuGui_SDT: sdt,
       MC_TTHC_GV_GuiYeuCau_NhanSuGui_Khoa: ThongTinGiangVien.ChuyenMon,
-      MC_TTHC_GV_GuiYeuCau_YeuCau_ID: '5', //id thủ tục
+      MC_TTHC_GV_GuiYeuCau_YeuCau_ID: TableData1.MC_TTHC_GV_GuiYeuCau_YeuCau_ID,
       MC_TTHC_GV_GuiYeuCau_YeuCau_GhiChu: nd,
       MC_TTHC_GV_GuiYeuCau_TrangThai_ID: TableData1.MC_TTHC_GV_IDMucDo,
       MC_TTHC_GV_GuiYeuCau_TrangThai_GhiChu: '',
@@ -107,6 +119,33 @@ const Soanhoso = props => {
 
     try {
       const response = await axios.post(apiPhucKhao, postdata, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (response.data.message === 'Bản ghi bị trùng.') {
+        handleModalPress();
+      } else {
+        if (response.status == 200) {
+          handleModalPress1();
+        }
+      }
+
+      if (response.status === 403) {
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+  const apihoso =
+    'https://apiv2.uneti.edu.vn/api/SP_MC_TTHC_GV_ThanhPhanHoSoTiepNhan/GuiYeuCau_Add_Para';
+  const [dataFile, setdatafile] = useState([]);
+  const PostYeuCau2 = async () => {
+    await PostYeuCau();
+
+    try {
+      const response = await axios.post(apihoso, dataFile, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -562,7 +601,7 @@ const Soanhoso = props => {
                         <View style={{flex: 0.35}}>
                           <TouchableOpacity
                             onPress={() => {
-                              chooseFile();
+                              chooseFile(index);
                             }}
                             style={{
                               borderRadius: 5,
@@ -589,7 +628,7 @@ const Soanhoso = props => {
                               styles.TextNormal,
                               {marginTop: 5, marginLeft: 3, textAlign: 'left'},
                             ]}>
-                            {FileName ? FileName : 'Chưa có tệp'}
+                            {FileName[index] ? FileName[index] : 'Chưa có tệp'}
                           </Text>
                         </View>
                       </View>

@@ -167,12 +167,52 @@ const CBXL_DanhSachThuTuc = props => {
 
         setDanhSachHoSoGuiLen(mangDanhSachHoSoGuiLen);
         setDanhSachHoSoGuiLenGoc(mangDanhSachHoSoGuiLen);
+      } else {
+        setDanhSachHoSoGuiLen([]);
+        setDanhSachHoSoGuiLenGoc([]);
       }
     };
     try {
       await retry(callApi1);
     } catch (error) {
       console.error('CBXL_Danh sach thu tuc - Gét mảng hồ sơ gửi lên', error);
+    }
+  };
+
+  //Lấy số lượng thủ tục gửi lên
+  const [soLuongThuGuiLen, setSoLuongThuTucGuiLen] = useState(0);
+  const apiSoLuongThuGuiLen = `https://apiv2.uneti.edu.vn/api/SP_MC_TTHC_GV_TiepNhan/GuiYeuCau_Load_ByMaNhanSu?MC_TTHC_GV_GuiYeuCau_MaNhanSu=${maGiangVien}`;
+  const getSoLuong = async () => {
+    const apiCall = async () => {
+      const response = await axios.get(apiSoLuongThuGuiLen, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (
+        response.status !== 400 &&
+        response.data &&
+        response.data.body &&
+        response.data.body.length > 0
+      ) {
+        const mangDanhSach = response.data.body.map(item => ({
+          idGuiYeuCau: item.MC_TTHC_GV_GuiYeuCau_ID,
+          tenThuTuc: item.MC_TTHC_GV_TenThuTuc,
+          ngayGui: item.MC_TTHC_GV_GuiYeuCau_NgayGui,
+          trangThai: item.MC_TTHC_GV_TrangThai_TenTrangThai,
+        }));
+
+        setSoLuongThuTucGuiLen(mangDanhSach.length);
+      } else {
+        setSoLuongThuTucGuiLen(0);
+      }
+    };
+
+    try {
+      await retry(apiCall);
+    } catch (error) {
+      console.error('API call failed after multiple attempts:', error);
     }
   };
 
@@ -379,6 +419,10 @@ const CBXL_DanhSachThuTuc = props => {
       soSanhQuyen();
     }
   }, [mangQuyen]);
+
+  useEffect(() => {
+    getSoLuong();
+  }, []);
 
   //Modal thông tin hồ sơ
   const openThongTinHoSo = item => {
@@ -1130,7 +1174,7 @@ const CBXL_DanhSachThuTuc = props => {
         </View>
       )}
 
-      <Footer />
+      <Footer soLuongThuTuc={soLuongThuGuiLen} />
     </SafeAreaView>
   );
 };

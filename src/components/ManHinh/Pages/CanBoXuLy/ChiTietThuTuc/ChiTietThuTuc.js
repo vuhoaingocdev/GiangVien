@@ -12,6 +12,7 @@ import {
   Alert,
   Modal,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import HeaderBack from '../../../Untils/HeaderBack';
 import {IDthutuc, MangQuyen} from '../DanhSachThuTuc/CBXL_DanhSachThuTuc';
@@ -20,21 +21,23 @@ import {Button, DataTable, TextInput} from 'react-native-paper';
 import {RadioButton} from 'react-native-paper';
 import DocumentPicker from 'react-native-document-picker';
 import axios from 'axios';
-import {Dropdown} from 'react-native-element-dropdown';
 import moment from 'moment';
 import {token} from '../../../../DangNhap/dangNhap';
 import RNFS from 'react-native-fs';
-import Index from '../..';
+import {Buffer} from 'buffer';
 import CheckBox from '@react-native-community/checkbox';
+import RNHTMLtoPDF from 'react-native-html-to-pdf';
 import {
   ThongTinGiangVien,
   getThongTinhGiangVien,
 } from '../../../../../api/GetThongTin/ThongTinGiangVien';
-
+import ModalThongBao from '../../../Untils/ModalThongBao';
+import {Nenfile} from './Nenfile';
 import {
   TEMPLATE_EMAIL_SUBJECT,
   sendEmailTTHCGV_CBNV_TP,
   sendEmailTTHCGV_TP_CBNV,
+  sendEmailTTHCGV_MucDo2,
   sendEmailTTHCGiangVien,
   sendEmailTTHCGV_TP_BGH,
 } from './GuiEmail';
@@ -43,12 +46,10 @@ const getWidth = Dimensions.get('window').width;
 const getHeight = Dimensions.get('window').height;
 const Chitiethosoxuly = props => {
   const [openModal, setOpenModal] = useState(false);
-  const [getIdGuiYeuCau, setIdGuiYeuCau] = useState(null);
   const [getTrangThai1, setTrangThai1] = useState('');
-  const [thongTinHoSo, setThongTinHoSo] = useState([]);
-  const [quaTrinhXuLy, setQuaTrinhXuLy] = useState([]);
   const [chiTietTiepNhanHoSo, setChiTietTiepNhanHoSo] = useState([]);
   const [hasData, setHasData] = useState(false);
+
   const Open = tt => {
     setOpenModal(true);
     setTrangThai1(tt);
@@ -98,7 +99,11 @@ const Chitiethosoxuly = props => {
       );
       console.log('ID thủ tục: ' + idThuTuc);
 
-      setTrangThaiSTT(response.data.body[0].MC_TTHC_GV_TrangThai_STT + 1);
+      if (response.data.body[0].MC_TTHC_GV_TrangThai_STT === null) {
+        setTrangThaiSTT(0);
+      } else {
+        setTrangThaiSTT(response.data.body[0].MC_TTHC_GV_TrangThai_STT + 1);
+      }
 
       setYeuCauID(response.data.body[0].MC_TTHC_GV_GuiYeuCau_YeuCau_ID);
     };
@@ -138,7 +143,7 @@ const Chitiethosoxuly = props => {
         },
       );
       setquytrinh(response.data.body);
-      //console.log(response.data.body);
+      //console.log("Data quy trinh:"+response.data.body);
     };
     try {
       await retry(callApi);
@@ -172,6 +177,7 @@ const Chitiethosoxuly = props => {
   const getTrangThaiHienHanh1 = async TrangThaiSTT => {
     if (checked === '1') {
       TrangThaiSTT = TrangThaiSTT - 2;
+      handleModalPress3();
     }
     const callApi = async () => {
       const response = await axios.get(
@@ -188,8 +194,9 @@ const Chitiethosoxuly = props => {
       const TrangThai = data.MC_TTHC_GV_TrangThai_ID;
       const TenTrangThai = data.MC_TTHC_GV_TrangThai_TenTrangThai;
       if (PostYeuCau({TrangThai, TenTrangThai}) === 200) {
-        Alert.alert('Gửi Thành công');
+        handleModalPress2();
       }
+      await getDataHoSo(idThuTuc);
     };
     try {
       await retry(callApi);
@@ -221,6 +228,70 @@ const Chitiethosoxuly = props => {
       console.error(error + 'Getdataquytrinhxuly');
     }
   };
+  const apiGetChiTietTiepNhanHoSo = `https://apiv2.uneti.edu.vn/api/SP_MC_TTHC_GV_TiepNhan/GuiYeuCau_NguoiDung_TheoDoi_QuyTrinhXuLy_Load_Para`;
+  const getChiTietTiepNhanHoSo = async (idGuiYC, getTrangThai1) => {
+    const callApi2 = async (idGuiYC, getTrangThai1) => {
+      const response = await axios.get(apiGetChiTietTiepNhanHoSo, {
+        params: {
+          MC_TTHC_GV_GuiYeuCau_ID: idGuiYC,
+          MC_TTHC_GV_TrangThai_TenTrangThai: getTrangThai1,
+        },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (response.status === 400) {
+        console.log('Lỗi cmnr');
+      }
+      if (
+        response.status !== 400 &&
+        response.data &&
+        response.data.body &&
+        response.data.body.length > 0
+      ) {
+        const mangChiTietTiepNhanHoSo = response.data.body.map(item => ({
+          nguoiXuLy: item.HoTen,
+          ngayHenTra: item.MC_TTHC_GV_GuiYeuCau_NgayHenTra,
+          noiTraKetQua: item.MC_TTHC_GV_GuiYeuCau_NoiTraKetQua,
+          ngayXuLy1: item.MC_TTHC_GV_GuiYeuCau_DateEditor,
+        }));
+        console.log('Mảng chi tiết hồ sơ:' + mangChiTietTiepNhanHoSo);
+        setChiTietTiepNhanHoSo(mangChiTietTiepNhanHoSo);
+      } else {
+        setChiTietTiepNhanHoSo([]);
+      }
+    };
+    try {
+      await retry(() => callApi2(idGuiYC, getTrangThai1));
+    } catch (error) {
+      console.error(error);
+    }
+  };
+  const [emailcbxl, setemailcbxl] = useState('');
+  const apigetemailcbxl = `https://apiv2.uneti.edu.vn/api/SP_MC_TTHC_GV_PhanQuyenTiepNhan/Load_CanBoXuLy_ByIDGoc?MC_TTHC_GV_PhanQuyen_IDTTHC=${idThuTuc}`;
+  const getemailcbxl = async () => {
+    const callApi = async () => {
+      const response = await axios.get(apigetemailcbxl, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (response.data.body.length === 0) {
+        setemailcbxl('');
+      } else {
+        console.log('Email CBXL: ' + response.body[0].QTPM_QLEMAIL_EmailUneti);
+        setemailcbxl(response.body[0].QTPM_QLEMAIL_EmailUneti);
+      }
+    };
+    try {
+      await retry(callApi);
+    } catch (error) {
+      console.error(error + 'Getemailcbxl');
+    }
+  };
+
   useEffect(() => {
     if (tabledata2 === 0) return;
     getDataTabble();
@@ -231,21 +302,22 @@ const Chitiethosoxuly = props => {
   }, []);
   useEffect(() => {
     getDataHoSo(idThuTuc);
+    getemailcbxl();
   }, []);
   useEffect(() => {
     if (TrangThaiSTT === 0 || YeuCauID === 0) return;
     getDataQuyTrinh();
-
     getTrangThaiHienHanh(TrangThaiSTT);
   }, [TrangThaiSTT, YeuCauID]);
+
   useEffect(() => {
     getThongTinhGiangVien();
   }, []);
-  ///// Lấy trạng thái cần hoàn thành
-
-  const [checked, setChecked] = useState('0');
-
-  const [checked1, setChecked1] = useState('0');
+  useEffect(() => {
+    if (YeuCauID !== '' || getTrangThai1 !== '') {
+      getChiTietTiepNhanHoSo(idThuTuc, getTrangThai1);
+    }
+  }, [idThuTuc, getTrangThai1]);
   useEffect(() => {
     if (!isSecondViewVisible) {
       setFirstViewHeight(20); // Reset height if second view is visible
@@ -256,6 +328,8 @@ const Chitiethosoxuly = props => {
       setFirstViewHeight(670);
     }
   });
+  const [checked, setChecked] = useState('');
+  const [checked1, setChecked1] = useState('0');
   const [status, setstatus] = useState(true);
   const [status1, setstatus1] = useState(true);
   const [status2, setstatus2] = useState(true);
@@ -286,7 +360,8 @@ const Chitiethosoxuly = props => {
     }
   }, []);
   const [FileName, setFileName] = useState('');
-  const [base64Content, setBase64] = useState('');
+  const [base64FileChoose, setBase64] = useState('');
+  const [filepath, setfilepath] = useState({});
   const readFileAsBase64 = async fileUri => {
     try {
       const base64Data = await RNFS.readFile(fileUri, 'base64');
@@ -296,20 +371,38 @@ const Chitiethosoxuly = props => {
       return null;
     }
   };
-  ///Chọn File
+
   const chooseFile = async () => {
     try {
       const res = await DocumentPicker.pick({
         type: [DocumentPicker.types.pdf, DocumentPicker.types.images],
+        allowMultiSelection: true,
       });
-      //  console.log(res[0].uri);
-      setFileName(FileName + res[0].name);
-      const base64Content1 = await readFileAsBase64(res[0].uri);
-      setBase64(
-        base64Content + 'data:' + res[0].type + ';base64,' + base64Content1,
-      );
-      //  console.log(base64Content);
-      //console.log(FileName);
+
+      //const base64Content1=await readFileAsBase64(res[0].uri);
+      // setBase64('data:'+res[0].type+';base64,'+base64Content1);
+
+      for (var i = 0; i < res.length; i++) {
+        console.log(res[i].uri);
+        setFileName(FileName => FileName + '+)' + res[i].name + '\n');
+      }
+      const nenhtml = await Nenfile(res);
+      const options = {
+        html: nenhtml,
+        fileName: 'convertedPdf',
+        directory: 'Documents',
+      };
+      // console.log("Tep nen"+nenhtml);
+
+      RNHTMLtoPDF.convert(options)
+        .then(async filePath => {
+          console.log(filePath);
+          const pdfContent = await RNFS.readFile(filePath.filePath, 'base64');
+          setBase64('data:application/pdf;base64,' + pdfContent);
+        })
+        .catch(error => {
+          console.error('Lỗi khi tạo PDF:', error);
+        });
     } catch (err) {
       if (DocumentPicker.isCancel(err)) {
         console.log('Hủy chọn tệp');
@@ -318,48 +411,36 @@ const Chitiethosoxuly = props => {
       }
     }
   };
-  /// Tải file
-  // const downloadFile = async (fileBuffer, fileName) => {
-  //   try {
-  //     const dirs = RNFetchBlob.fs.dirs;
-  //     const path = `${dirs.DownloadDir}/${fileName}`;
 
-  //     // Tạo một Blob từ buffer
-  //     const blob = new Blob([fileBuffer], { type: 'application/octet-stream' });
-
-  //     // Ghi blob vào file trên thiết bị
-  //     await RNFetchBlob.fs.writeFile(path, blob, 'base64');
-
-  //     console.log('File downloaded successfully. Path:', path);
-  //   } catch (error) {
-  //     console.error('Error downloading file:', error);
-  //   }
-  // };
-
-  // // Sử dụng hàm downloadFile
-  // const fileBuffer = /* Buffer của file từ server */;
-  // const fileName = 'example_file.txt';
-
-  // downloadFile(fileBuffer, fileName);
+  // Hàm để tạo tài liệu PDF từ các hình ảnh base64
 
   var PutAPI = `https://apiv2.uneti.edu.vn/api/SP_MC_TTHC_GV_TiepNhan/GuiYeuCau_Edit_Para`;
   const PostYeuCau = async ({TrangThai, TenTrangThai}) => {
     var postdata = {
-      MC_TTHC_GV_GuiYeuCau_ID: idThuTuc,
+      MC_TTHC_GV_GuiYeuCau_ID: idThuTuc ? idThuTuc : '',
       MC_TTHC_GV_GuiYeuCau_NhanSuGui_MaNhanSu:
-        tabledata.MC_TTHC_GV_GuiYeuCau_NhanSuGui_MaNhanSu,
+        tabledata.MC_TTHC_GV_GuiYeuCau_NhanSuGui_MaNhanSu
+          ? tabledata.MC_TTHC_GV_GuiYeuCau_NhanSuGui_MaNhanSu
+          : '',
       MC_TTHC_GV_GuiYeuCau_NhanSuGui_Email:
-        tabledata.MC_TTHC_GV_GuiYeuCau_NhanSuGui_Email,
+        tabledata.MC_TTHC_GV_GuiYeuCau_NhanSuGui_Email
+          ? tabledata.MC_TTHC_GV_GuiYeuCau_NhanSuGui_Email
+          : '',
       MC_TTHC_GV_GuiYeuCau_NhanSuGui_SDT:
-        tabledata.MC_TTHC_GV_GuiYeuCau_NhanSuGui_SDT,
+        tabledata.MC_TTHC_GV_GuiYeuCau_NhanSuGui_SDT
+          ? tabledata.MC_TTHC_GV_GuiYeuCau_NhanSuGui_SDT
+          : '',
       MC_TTHC_GV_GuiYeuCau_NhanSuGui_Khoa:
-        tabledata.MC_TTHC_GV_GuiYeuCau_NhanSuGui_Khoa,
-      MC_TTHC_GV_GuiYeuCau_YeuCau_ID: YeuCauID,
-      MC_TTHC_GV_GuiYeuCau_YeuCau_GhiChu:
-        tabledata.MC_TTHC_GV_GuiYeuCau_YeuCau_GhiChu,
-      MC_TTHC_GV_GuiYeuCau_TrangThai_ID: TrangThai,
+        tabledata.MC_TTHC_GV_GuiYeuCau_NhanSuGui_Khoa
+          ? tabledata.MC_TTHC_GV_GuiYeuCau_NhanSuGui_Khoa
+          : '',
+      MC_TTHC_GV_GuiYeuCau_YeuCau_ID: YeuCauID ? YeuCauID : '',
+      MC_TTHC_GV_GuiYeuCau_YeuCau_GhiChu: tabledata
+        ? tabledata.MC_TTHC_GV_GuiYeuCau_YeuCau_GhiChu
+        : '',
+      MC_TTHC_GV_GuiYeuCau_TrangThai_ID: TrangThai ? TrangThai : '',
 
-      MC_TTHC_GV_GuiYeuCau_TrangThai_GhiChu: TenTrangThai,
+      MC_TTHC_GV_GuiYeuCau_TrangThai_GhiChu: TenTrangThai ? TenTrangThai : '',
 
       MC_TTHC_GV_GuiYeuCau_NgayGui: moment
         .utc(moment(), 'DD/MM/YYYY')
@@ -369,9 +450,11 @@ const Chitiethosoxuly = props => {
       MC_TTHC_GV_GuiYeuCau_DaNop: tabledata.MC_TTHC_GV_GuiYeuCau_DaNop,
       MC_TTHC_GV_GuiYeuCau_NgayHenTra:
         tabledata.MC_TTHC_GV_GuiYeuCau_NgayHenTra,
-      MC_TTHC_GV_GuiYeuCau_TraKetQua_TenFile: FileName,
-      MC_TTHC_GV_GuiYeuCau_TraKetQua_DataFile: base64Content,
-      MC_TTHC_GV_GuiYeuCau_TrangThaiPheDuyetTruongPhong: checked,
+      MC_TTHC_GV_GuiYeuCau_TraKetQua_TenFile: FileName ? FileName : '',
+      MC_TTHC_GV_GuiYeuCau_TraKetQua_DataFile: base64FileChoose
+        ? base64FileChoose
+        : '',
+      MC_TTHC_GV_GuiYeuCau_TrangThaiPheDuyetTruongPhong: checked ? checked : '',
       MC_TTHC_GV_GuiYeuCau_MoTaTTPheDuyetTruongPhong: 'string',
       MC_TTHC_GV_GuiYeuCau_TrangThaiPheDuyetBGH: checked1,
       MC_TTHC_GV_GuiYeuCau_MoTaTTPheDuyetBGH: 'string',
@@ -395,6 +478,61 @@ const Chitiethosoxuly = props => {
       console.error(error);
     }
   };
+  var PutAPI = `https://apiv2.uneti.edu.vn/api/SP_MC_TTHC_GV_TiepNhan/GuiYeuCau_Edit_Para`;
+  const Huytra = async () => {
+    var postdata = {
+      MC_TTHC_GV_GuiYeuCau_ID: idThuTuc,
+      MC_TTHC_GV_GuiYeuCau_NhanSuGui_MaNhanSu:
+        tabledata.MC_TTHC_GV_GuiYeuCau_NhanSuGui_MaNhanSu,
+      MC_TTHC_GV_GuiYeuCau_NhanSuGui_Email:
+        tabledata.MC_TTHC_GV_GuiYeuCau_NhanSuGui_Email,
+      MC_TTHC_GV_GuiYeuCau_NhanSuGui_SDT:
+        tabledata.MC_TTHC_GV_GuiYeuCau_NhanSuGui_SDT,
+      MC_TTHC_GV_GuiYeuCau_NhanSuGui_Khoa:
+        tabledata.MC_TTHC_GV_GuiYeuCau_NhanSuGui_Khoa,
+      MC_TTHC_GV_GuiYeuCau_YeuCau_ID: YeuCauID,
+      MC_TTHC_GV_GuiYeuCau_YeuCau_GhiChu:
+        tabledata.MC_TTHC_GV_GuiYeuCau_YeuCau_GhiChu,
+      MC_TTHC_GV_GuiYeuCau_TrangThai_ID: -1,
+
+      MC_TTHC_GV_GuiYeuCau_TrangThai_GhiChu: 'Hủy trả hồ sơ',
+
+      MC_TTHC_GV_GuiYeuCau_NgayGui: moment
+        .utc(moment(), 'DD/MM/YYYY')
+        .toISOString(),
+      MC_TTHC_GV_GuiYeuCau_KetQua_SoLuong:
+        tabledata.MC_TTHC_GV_GuiYeuCau_KetQua_SoLuong,
+      MC_TTHC_GV_GuiYeuCau_DaNop: tabledata.MC_TTHC_GV_GuiYeuCau_DaNop,
+      MC_TTHC_GV_GuiYeuCau_NgayHenTra:
+        tabledata.MC_TTHC_GV_GuiYeuCau_NgayHenTra,
+      MC_TTHC_GV_GuiYeuCau_TraKetQua_TenFile: '',
+      MC_TTHC_GV_GuiYeuCau_TraKetQua_DataFile: null,
+      MC_TTHC_GV_GuiYeuCau_TrangThaiPheDuyetTruongPhong: null,
+      MC_TTHC_GV_GuiYeuCau_MoTaTTPheDuyetTruongPhong: '',
+      MC_TTHC_GV_GuiYeuCau_TrangThaiPheDuyetBGH: null,
+      MC_TTHC_GV_GuiYeuCau_MoTaTTPheDuyetBGH: '',
+      MC_TTHC_GV_GuiYeuCau_NgayGiaoTra:
+        tabledata.MC_TTHC_GV_GuiYeuCau_NgayGiaoTra,
+      MC_TTHC_GV_GuiYeuCau_NoiTraKetQua:
+        tabledata.MC_TTHC_GV_GuiYeuCau_NoiTraKetQua,
+      MC_TTHC_GV_GuiYeuCau_NguonTiepNhan:
+        tabledata.MC_TTHC_GV_GuiYeuCau_NguonTiepNhan,
+    };
+    console.log(postdata);
+    try {
+      const response = await axios.put(PutAPI, postdata, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (response.status === 200) {
+        handleModalPress5();
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
   var SendEmail = `https://apiv2.uneti.edu.vn/api/send-email/Verifier`;
   const sendEmail = async acTion => {
     const {contentReply, emailHtml, subjectEmail} = sendEmailTTHCGiangVien({
@@ -412,9 +550,11 @@ const Chitiethosoxuly = props => {
     });
     console.log('Dữ liệu 429', contentReply);
     const data = {
-      to: 'vuson20022020@gmail.com', //Email muốn gửi đến
+      to: tabledata.MC_TTHC_GV_GuiYeuCau_NhanSuGui_Email, //Email muốn gửi đến
       subject: subjectEmail, // contentTitle //Tiêu đề email
       text: contentReply, //Nội dung email
+      tenfile: FileName, //ten file đó
+      dulieu: base64FileChoose, //dữ liệu của file đó
       html: emailHtml,
     };
     try {
@@ -428,7 +568,7 @@ const Chitiethosoxuly = props => {
         Alert.alert('Thông báo', 'Yêu cầu đã được gửi trước đó');
       } else {
         if (response.status == 200) {
-          Alert.alert('Thông báo', 'Gửi yêu cầu thành công');
+          handleModalPress2();
         }
       }
 
@@ -455,9 +595,11 @@ const Chitiethosoxuly = props => {
       );
 
     const data = {
-      to: 'vuson20022020@gmail.com', // Email muốn gửi đến
+      to: tabledata.MC_TTHC_GV_EmailTruongPhongPheDuyet, // Email muốn gửi đến
       subject: subjectEmail, // contentTitle // Tiêu đề email
       text: contentEmail, // Nội dung email
+      tenfile: FileName, //ten file đó
+      dulieu: base64FileChoose, //dữ liệu của file đó
       html: emailHtml,
     };
     console.log('🚀 ~ sendEmail1 ~ data:', data);
@@ -473,7 +615,7 @@ const Chitiethosoxuly = props => {
         Alert.alert('Thông báo', 'Yêu cầu đã được gửi trước đó');
       } else {
         if (response.status == 200) {
-          Alert.alert('Thông báo', 'Gửi yêu cầu thành công');
+          handleModalPress2();
         }
       }
 
@@ -509,9 +651,11 @@ const Chitiethosoxuly = props => {
       );
 
     const data = {
-      to: 'vuson20022020@gmail.com', //Email muốn gửi đến
+      to: emailcbxl ? emailcbxl : '', //Email muốn gửi đến
       subject: subjectEmail, // contentTitle //Tiêu đề email
       text: noiDungLyDo, //Nội dung email
+      tenfile: FileName, //ten file đó
+      dulieu: base64FileChoose, //dữ liệu của file đó
       html: emailHtml,
     };
     try {
@@ -526,7 +670,7 @@ const Chitiethosoxuly = props => {
         Alert.alert('Thông báo', 'Yêu cầu đã được gửi trước đó');
       } else {
         if (response.status == 200) {
-          Alert.alert('Thông báo', 'Gửi yêu cầu thành công');
+          handleModalPress2();
         }
       }
 
@@ -542,6 +686,8 @@ const Chitiethosoxuly = props => {
         'Trình duyệt',
         tabledata,
         {
+          MaNhanSu: ThongTinGiangVien.MaNhanSu,
+          HienTaiPhongBan: ThongTinGiangVien.HienTaiPhongBan,
           HoDem: ThongTinGiangVien.HoDem,
           Ten: ThongTinGiangVien.Ten,
           Email: ThongTinGiangVien.Email,
@@ -552,9 +698,11 @@ const Chitiethosoxuly = props => {
       );
 
     const data = {
-      to: 'vuson20022020@gmail.com', //Email muốn gửi đến
+      to: tabledata.MC_TTHC_GV_EmailBGHPheDuyet, //Email muốn gửi đến
       subject: subjectEmail, // contentTitle //Tiêu đề email
       text: noiDungTrinhDuyet, //Nội dung email
+      tenfile: FileName, //ten file đó
+      dulieu: base64FileChoose, //dữ liệu của file đó
       html: emailHtml,
     };
     try {
@@ -569,13 +717,135 @@ const Chitiethosoxuly = props => {
         Alert.alert('Thông báo', 'Yêu cầu đã được gửi trước đó');
       } else {
         if (response.status == 200) {
-          Alert.alert('Thông báo', 'Gửi yêu cầu thành công');
+          handleModalPress2();
         }
       }
       if (response.status === 403) {
       }
     } catch (error) {
       console.error(error);
+    }
+  };
+  const senEmailMD2 = async () => {
+    let momentTime = moment.utc(ngaygui).utcOffset('+07:00');
+    let ngaygio = momentTime.format('DD/MM/YYYY HH:mm:ss');
+    const {emailHtml, subjectEmail, contentReply} =
+      await sendEmailTTHCGV_MucDo2(
+        TenTrangThai,
+        tabledata,
+        {
+          HoDem: ThongTinGiangVien.HoDem,
+          Ten: ThongTinGiangVien.Ten,
+          Email: ThongTinGiangVien.Email,
+          SoDienThoai: ThongTinGiangVien.SoDienThoai,
+        },
+        noidung,
+        ngaygio,
+        diadiem,
+        tabledata2,
+      );
+    const data = {
+      to: tabledata.MC_TTHC_GV_GuiYeuCau_NhanSuGui_Email, //Email muốn gửi đến
+      subject: subjectEmail, // contentTitle //Tiêu đề email
+      text: contentReply, //Nội dung email
+      tenfile: FileName, //ten file đó
+      dulieu: base64FileChoose, //dữ liệu của file đó
+      html: emailHtml,
+    };
+    try {
+      const response = await axios.post(SendEmail, data, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      console.log(response);
+      if (response.data.message === 'Bản ghi bị trùng.') {
+        Alert.alert('Thông báo', 'Yêu cầu đã được gửi trước đó');
+      } else {
+        if (response.status == 200) {
+          handleModalPress2();
+        }
+      }
+      if (response.status === 403) {
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+  const [showModal, setShowModal] = useState(false);
+  const handleModalPress = () => {
+    setShowModal(true);
+  };
+  const handleCloseModal = () => {
+    setShowModal(false);
+  };
+  const [showModal1, setShowModal1] = useState(false);
+  const handleModalPress1 = () => {
+    setShowModal1(true);
+  };
+  const handleCloseModal1 = () => {
+    setShowModal1(false);
+  };
+  const [showModal2, setShowModal2] = useState(false);
+  const handleModalPress2 = () => {
+    setShowModal2(true);
+  };
+  const handleCloseModal2 = () => {
+    setShowModal2(false);
+  };
+  const [showModal3, setShowModal3] = useState(false);
+  const handleModalPress3 = () => {
+    setShowModal3(true);
+  };
+  const handleCloseModal3 = () => {
+    setShowModal3(false);
+  };
+  const [showModal4, setShowModal4] = useState(false);
+  const handleModalPress4 = () => {
+    setShowModal4(true);
+  };
+  const handleCloseModal4 = () => {
+    setShowModal4(false);
+  };
+  const [showModal5, setShowModal5] = useState(false);
+  const handleModalPress5 = () => {
+    setShowModal5(true);
+  };
+  const handleCloseModal5 = () => {
+    setShowModal5(false);
+  };
+  const [showModal6, setShowModal6] = useState(false);
+  const handleModalPress6 = () => {
+    setShowModal6(true);
+  };
+  const handleCloseModal6 = () => {
+    setShowModal6(false);
+  };
+  const saveBufferToFile = async (bufferData, fileName, directory) => {
+    try {
+      // Tạo thư mục nếu chưa tồn tại
+      await RNFS.mkdir(directory, {NSURLIsExcludedFromBackupKey: true});
+
+      // Kết hợp đường dẫn thư mục và tên tệp
+      const filePath = `${directory}/${fileName}`;
+
+      // Kiểm tra xem tệp đã tồn tại chưa
+      const fileExists = await RNFS.exists(filePath);
+      if (fileExists) {
+        console.log('Tệp đã tồn tại:', filePath);
+        return filePath; // Trả về đường dẫn của tệp đã tồn tại
+      }
+
+      // Ghi dữ liệu buffer vào tệp
+      await RNFS.writeFile(filePath, bufferData, 'base64');
+
+      console.log('Ghi tệp thành công:', filePath);
+
+      return filePath; // Trả về đường dẫn của tệp đã ghi
+    } catch (error) {
+      console.error('Lỗi khi ghi tệp:', error);
+      throw error;
     }
   };
 
@@ -587,12 +857,48 @@ const Chitiethosoxuly = props => {
           props.navigation.goBack();
         }}
       />
+      <ModalThongBao
+        visible={showModal}
+        onClose={handleCloseModal}
+        message="Mời nhập đủ nội dung!!!"
+      />
+      <ModalThongBao
+        visible={showModal1}
+        onClose={handleCloseModal1}
+        message="Bạn không có quyền xử lý bước này!!!"
+      />
+      <ModalThongBao
+        visible={showModal2}
+        onClose={handleCloseModal2}
+        message="Gửi yêu cầu thành công. Vui lòng kiểm tra email gửi về!!!"
+      />
+      <ModalThongBao
+        visible={showModal3}
+        onClose={handleCloseModal3}
+        message="Hồ sơ không được phê duyệt!!!"
+      />
+      <ModalThongBao
+        visible={showModal4}
+        onClose={handleCloseModal4}
+        message="Hãy nhập đầy đủ thông tin (*)"
+      />
+      <ModalThongBao
+        visible={showModal5}
+        onClose={handleCloseModal5}
+        message="Đã hủy trả hồ sơ!!!"
+      />
+      <ModalThongBao
+        visible={showModal6}
+        onClose={handleCloseModal6}
+        message="Hãy chọn trạng thái!!!"
+      />
       <ScrollView>
         <View>
           <View style={styles.tieudelon}>
             <TouchableOpacity
               onPress={() => {
                 setstatus(!status);
+                getemailcbxl();
               }}>
               {status ? (
                 <Image
@@ -852,7 +1158,31 @@ const Chitiethosoxuly = props => {
                                   flex: 0.4,
                                 },
                               ]}>
-                              <Text style={styles.TextNormal}>Xem</Text>
+                              <TouchableOpacity
+                                onPress={() => {
+                                  // handleDownloadFile(td);
+                                  //console.log(base64Content);
+                                  let bufferdata =
+                                    td
+                                      .MC_TTHC_GV_ThanhPhanHoSo_GuiYeuCau_DataFile
+                                      .data;
+                                  let buffer = Buffer.from(bufferdata);
+                                  let base64content = buffer.toString('base64');
+                                  // //  console.log("B64: "+base64content);
+                                  const directory =
+                                    Platform.OS === 'android'
+                                      ? '/storage/emulated/0/Download'
+                                      : RNFS.DocumentDirectoryPath;
+                                  saveBufferToFile(
+                                    base64content,
+                                    td.MC_TTHC_GV_ThanhPhanHoSo_GuiYeuCau_TenFile,
+                                    directory,
+                                  );
+                                  //console.log("data: "+td.MC_TTHC_GV_ThanhPhanHoSo_GuiYeuCau_DataFile.data);
+                                  //console.log("ten file: "+td.MC_TTHC_GV_ThanhPhanHoSo_GuiYeuCau_TenFile);
+                                }}>
+                                <Text style={styles.TextNormal}>Xem</Text>
+                              </TouchableOpacity>
                             </DataTable.Cell>
                           </DataTable.Row>
                         ))
@@ -886,7 +1216,6 @@ const Chitiethosoxuly = props => {
             Quy trình xử lý
           </Text>
         </View>
-
         {status2
           ? dataquytrinh
             ? dataquytrinh.map(td => (
@@ -988,94 +1317,97 @@ const Chitiethosoxuly = props => {
                                 </Text>
                               </View>
                             </View>
-                            <View style={{flexDirection: 'row'}}>
-                              <View style={{marginTop: 10, marginLeft: 15}}>
-                                <Text
-                                  style={[
-                                    styles.TextNormal,
-                                    {textAlign: 'left'},
-                                  ]}>
-                                  Ngày giờ hẹn trả
-                                </Text>
-                                <View style={{flexDirection: 'row'}}>
-                                  <TouchableOpacity
-                                    onPress={handlePress}
-                                    style={{
-                                      flexDirection: 'row',
-                                      borderWidth: 1,
-                                      width: '65%',
-                                      borderRadius: 5,
-                                    }}>
-                                    <DatePicker
-                                      modal
-                                      mode="date"
-                                      open={open}
-                                      date={ngaygui}
-                                      onConfirm={ngaygui => {
-                                        setopen(false);
-                                        setngaygui(ngaygui);
-                                      }}
-                                      onCancel={() => {
-                                        setopen(false);
-                                      }}
-                                    />
-                                    <TextInput
-                                      readOnly={true}
+                            {tabledata.MC_TTHC_GV_IDMucDo === 2 ? (
+                              <View style={{flexDirection: 'row'}}>
+                                <View style={{marginTop: 10, marginLeft: 15}}>
+                                  <Text
+                                    style={[
+                                      styles.TextNormal,
+                                      {textAlign: 'left'},
+                                    ]}>
+                                    Ngày giờ hẹn trả
+                                  </Text>
+                                  <View style={{flexDirection: 'row'}}>
+                                    <TouchableOpacity
+                                      onPress={handlePress}
                                       style={{
-                                        height: 30,
-                                        width: '80%',
-                                        backgroundColor: '#ffffff',
-                                      }}
-                                      value={ngaygui
-                                        .toLocaleDateString('vi-VN')
-                                        .toString()}
-                                    />
+                                        flexDirection: 'row',
+                                        borderWidth: 1,
+                                        width: '65%',
+                                        borderRadius: 5,
+                                      }}>
+                                      <DatePicker
+                                        modal
+                                        mode="datetime"
+                                        open={open}
+                                        date={ngaygui}
+                                        onConfirm={ngaygui => {
+                                          setopen(false);
+                                          setngaygui(ngaygui);
+                                        }}
+                                        onCancel={() => {
+                                          setopen(false);
+                                        }}
+                                      />
+                                      <TextInput
+                                        readOnly={true}
+                                        style={{
+                                          height: 30,
+                                          width: '80%',
+                                          backgroundColor: '#ffffff',
+                                        }}
+                                        value={ngaygui
+                                          .toLocaleDateString('vi-VN')
+                                          .toString()}
+                                      />
 
-                                    <Image
-                                      source={require('../../../../../images/calendar.png')}
-                                      style={{
-                                        width: 25,
-                                        height: 25,
-                                        marginTop: 2.5,
-                                        marginLeft: 1,
-                                      }}
-                                    />
-                                  </TouchableOpacity>
+                                      <Image
+                                        source={require('../../../../../images/calendar.png')}
+                                        style={{
+                                          width: 25,
+                                          height: 25,
+                                          marginTop: 2.5,
+                                          marginLeft: 1,
+                                        }}
+                                      />
+                                    </TouchableOpacity>
+                                  </View>
+                                </View>
+                                <View style={{marginTop: 10, marginLeft: -25}}>
+                                  <Text
+                                    style={[
+                                      styles.TextNormal,
+                                      {textAlign: 'left'},
+                                    ]}>
+                                    Địa điểm hẹn trả
+                                    <Text style={{color: 'red'}}>(*)</Text>
+                                  </Text>
+
+                                  <TextInput
+                                    style={{
+                                      height: 20,
+                                      width: 120,
+                                      fontSize: 18,
+
+                                      borderColor: 'black',
+                                      borderWidth: 0.5,
+                                      padding: 5,
+                                      borderRadius: 5,
+                                      borderTopLeftRadius: 5,
+                                      borderTopRightRadius: 5,
+                                      color: 'black',
+                                      backgroundColor: '#ffffff',
+                                      backgroundColor: '#ffffff',
+                                    }}
+                                    onChangeText={text => setdiadiem(text)}
+                                    value={diadiem}
+                                    multiline={true}
+                                    numberOfLines={4}
+                                    underlineColor="transparent"
+                                  />
                                 </View>
                               </View>
-                              <View style={{marginTop: 10, marginLeft: -25}}>
-                                <Text
-                                  style={[
-                                    styles.TextNormal,
-                                    {textAlign: 'left'},
-                                  ]}>
-                                  Địa điểm hẹn trả
-                                </Text>
-
-                                <TextInput
-                                  style={{
-                                    height: 20,
-                                    width: 120,
-                                    fontSize: 18,
-
-                                    borderColor: 'black',
-                                    borderWidth: 0.5,
-                                    padding: 5,
-                                    borderRadius: 5,
-                                    borderTopLeftRadius: 5,
-                                    borderTopRightRadius: 5,
-                                    color: 'black',
-                                    backgroundColor: '#ffffff',
-                                    backgroundColor: '#ffffff',
-                                  }}
-                                  onChangeText={text => setdiadiem(text)}
-                                  value={diadiem}
-                                  multiline={true}
-                                  numberOfLines={4}
-                                  underlineColor="transparent"
-                                />
-                              </View>
-                            </View>
+                            ) : null}
                             <Text
                               style={[
                                 styles.TextNormal,
@@ -1085,7 +1417,7 @@ const Chitiethosoxuly = props => {
                                   marginTop: 5,
                                 },
                               ]}>
-                              Nội dung:
+                              Nội dung:<Text style={{color: 'red'}}>(*)</Text>
                             </Text>
                             <TextInput
                               style={{
@@ -1164,8 +1496,10 @@ const Chitiethosoxuly = props => {
                                 backgroundColor: '#ffffff',
                                 borderWidth: 1,
                                 borderRadius: 5,
-                                height: 30,
+                                height: 70,
                                 flexDirection: 'row',
+                                justifyContent: 'center',
+                                alignItems: 'center',
                               }}>
                               <TouchableOpacity
                                 onPress={() => {
@@ -1177,8 +1511,10 @@ const Chitiethosoxuly = props => {
                                   width: '30%',
                                   backgroundColor: '#C0C0C0',
                                   marginLeft: 2,
+                                  height: 30,
                                   marginTop: 2,
                                   marginBottom: 2,
+                                  justifyContent: 'center',
                                 }}>
                                 <Text
                                   style={{
@@ -1192,16 +1528,23 @@ const Chitiethosoxuly = props => {
                               <View
                                 style={{
                                   width: '69%',
+                                  height: '100%',
                                   justifyContent: 'center',
                                 }}>
-                                <Text
-                                  numberOfLines={1}
-                                  style={[
-                                    styles.TextNormal,
-                                    {marginLeft: 3, textAlign: 'left'},
-                                  ]}>
-                                  {FileName ? FileName : 'Chưa có tệp'}
-                                </Text>
+                                <ScrollView nestedScrollEnabled={true}>
+                                  <Text
+                                    numberOfLines={10}
+                                    style={[
+                                      styles.TextNormal,
+                                      {
+                                        marginLeft: 3,
+                                        textAlign: 'left',
+                                        width: '90%',
+                                      },
+                                    ]}>
+                                    {FileName ? FileName : 'Chưa có tệp'}
+                                  </Text>
+                                </ScrollView>
                               </View>
                             </View>
                             <Text
@@ -1236,8 +1579,29 @@ const Chitiethosoxuly = props => {
                                 <TouchableOpacity
                                   style={styles.touchableOpacity}
                                   onPress={() => {
-                                    getTrangThaiHienHanh1(TrangThaiSTT);
-                                    sendEmail(TEMPLATE_EMAIL_SUBJECT.RECEIVED);
+                                    if (noidung === '') {
+                                      handleModalPress();
+                                    } else {
+                                      if (MangQuyen[0] != 16) {
+                                        handleModalPress1();
+                                      } else {
+                                        getTrangThaiHienHanh1(TrangThaiSTT);
+                                        getDataHoSo(idThuTuc);
+                                        if (
+                                          tabledata.MC_TTHC_GV_IDMucDo === 2
+                                        ) {
+                                          if (diadiem === '') {
+                                            handleModalPress4();
+                                          } else {
+                                            senEmailMD2();
+                                          }
+                                        } else {
+                                          sendEmail(
+                                            TEMPLATE_EMAIL_SUBJECT.RECEIVED,
+                                          );
+                                        }
+                                      }
+                                    }
                                   }}>
                                   <Text style={{color: 'white', fontSize: 18}}>
                                     Tiếp nhận
@@ -1253,15 +1617,7 @@ const Chitiethosoxuly = props => {
                                     {backgroundColor: 'red'},
                                   ]}
                                   onPress={() => {
-                                    if (dataTable.length == 0) {
-                                      handleModalPress1();
-                                    } else {
-                                      if (!kiemTraChonMonHoc) {
-                                        handleModalPress2();
-                                      } else {
-                                        PostYeuCau();
-                                      }
-                                    }
+                                    Huytra();
                                   }}>
                                   <Text
                                     style={{color: '#ffffff', fontSize: 19}}>
@@ -1315,113 +1671,120 @@ const Chitiethosoxuly = props => {
                                   Người nộp hồ sơ
                                 </Text>
                               </View>
-
-                              <View
-                                style={{flexDirection: 'row', marginLeft: 15}}>
-                                <CheckBox
-                                  value={checkedTPDV}
-                                  tintColors={{
-                                    true: checkboxColor,
-                                    false: checkboxUncheckedColor,
-                                  }}
-                                />
-                                <Text
-                                  style={[
-                                    styles.TextNormal,
-                                    {alignItems: 'center', marginTop: 7},
-                                  ]}>
-                                  Trưởng/phó đơn vị
-                                </Text>
-                              </View>
+                              {tabledata.MC_TTHC_GV_IDMucDo != 2 ? (
+                                <View
+                                  style={{
+                                    flexDirection: 'row',
+                                    marginLeft: 15,
+                                  }}>
+                                  <CheckBox
+                                    value={checkedTPDV}
+                                    tintColors={{
+                                      true: checkboxColor,
+                                      false: checkboxUncheckedColor,
+                                    }}
+                                  />
+                                  <Text
+                                    style={[
+                                      styles.TextNormal,
+                                      {alignItems: 'center', marginTop: 7},
+                                    ]}>
+                                    Trưởng/phó đơn vị
+                                  </Text>
+                                </View>
+                              ) : null}
                             </View>
-                            <View style={{flexDirection: 'row'}}>
-                              <View style={{marginTop: 10, marginLeft: 15}}>
-                                <Text
-                                  style={[
-                                    styles.TextNormal,
-                                    {textAlign: 'left'},
-                                  ]}>
-                                  Ngày giờ hẹn trả
-                                </Text>
-                                <View style={{flexDirection: 'row'}}>
-                                  <TouchableOpacity
-                                    onPress={handlePress}
-                                    style={{
-                                      flexDirection: 'row',
-                                      borderWidth: 1,
-                                      width: '65%',
-                                      borderRadius: 5,
-                                    }}>
-                                    <DatePicker
-                                      modal
-                                      mode="date"
-                                      open={open}
-                                      date={ngaygui}
-                                      onConfirm={ngaygui => {
-                                        setopen(false);
-                                        setngaygui(ngaygui);
-                                      }}
-                                      onCancel={() => {
-                                        setopen(false);
-                                      }}
-                                    />
-                                    <TextInput
-                                      readOnly={true}
+                            {tabledata.MC_TTHC_GV_IDMucDo === 2 ? (
+                              <View style={{flexDirection: 'row'}}>
+                                <View style={{marginTop: 10, marginLeft: 15}}>
+                                  <Text
+                                    style={[
+                                      styles.TextNormal,
+                                      {textAlign: 'left'},
+                                    ]}>
+                                    Ngày giờ hẹn trả
+                                  </Text>
+                                  <View style={{flexDirection: 'row'}}>
+                                    <TouchableOpacity
+                                      onPress={handlePress}
                                       style={{
-                                        height: 30,
-                                        width: '80%',
-                                        backgroundColor: '#ffffff',
-                                      }}
-                                      value={ngaygui
-                                        .toLocaleDateString('vi-VN')
-                                        .toString()}
-                                    />
+                                        flexDirection: 'row',
+                                        borderWidth: 1,
+                                        width: '65%',
+                                        borderRadius: 5,
+                                      }}>
+                                      <DatePicker
+                                        modal
+                                        mode="datetime"
+                                        open={open}
+                                        date={ngaygui}
+                                        onConfirm={ngaygui => {
+                                          setopen(false);
+                                          setngaygui(ngaygui);
+                                        }}
+                                        onCancel={() => {
+                                          setopen(false);
+                                        }}
+                                      />
+                                      <TextInput
+                                        readOnly={true}
+                                        style={{
+                                          height: 30,
+                                          width: '80%',
+                                          backgroundColor: '#ffffff',
+                                        }}
+                                        value={ngaygui
+                                          .toLocaleDateString('vi-VN')
+                                          .toString()}
+                                      />
 
-                                    <Image
-                                      source={require('../../../../../images/calendar.png')}
-                                      style={{
-                                        width: 25,
-                                        height: 25,
-                                        marginTop: 2.5,
-                                        marginLeft: 1,
-                                      }}
-                                    />
-                                  </TouchableOpacity>
+                                      <Image
+                                        source={require('../../../../../images/calendar.png')}
+                                        style={{
+                                          width: 25,
+                                          height: 25,
+                                          marginTop: 2.5,
+                                          marginLeft: 1,
+                                        }}
+                                      />
+                                    </TouchableOpacity>
+                                  </View>
+                                </View>
+                                <View style={{marginTop: 10, marginLeft: -23}}>
+                                  <Text
+                                    style={[
+                                      styles.TextNormal,
+                                      {textAlign: 'left'},
+                                    ]}>
+                                    Địa điểm hẹn trả{' '}
+                                    <Text style={{color: 'red'}}>(*)</Text>
+                                  </Text>
+
+                                  <TextInput
+                                    style={{
+                                      height: 20,
+                                      width: 120,
+                                      fontSize: 18,
+
+                                      borderColor: 'black',
+                                      borderWidth: 0.5,
+                                      padding: 5,
+                                      borderRadius: 5,
+                                      borderTopLeftRadius: 5,
+                                      borderTopRightRadius: 5,
+                                      color: 'black',
+                                      backgroundColor: '#ffffff',
+                                      backgroundColor: '#ffffff',
+                                    }}
+                                    onChangeText={text => setdiadiem(text)}
+                                    value={diadiem}
+                                    multiline={true}
+                                    numberOfLines={4}
+                                    underlineColor="transparent"
+                                  />
                                 </View>
                               </View>
-                              <View style={{marginTop: 10, marginLeft: -23}}>
-                                <Text
-                                  style={[
-                                    styles.TextNormal,
-                                    {textAlign: 'left'},
-                                  ]}>
-                                  Địa điểm hẹn trả
-                                </Text>
-
-                                <TextInput
-                                  style={{
-                                    height: 20,
-                                    width: 120,
-                                    fontSize: 18,
-
-                                    borderColor: 'black',
-                                    borderWidth: 0.5,
-                                    padding: 5,
-                                    borderRadius: 5,
-                                    borderTopLeftRadius: 5,
-                                    borderTopRightRadius: 5,
-                                    color: 'black',
-                                    backgroundColor: '#ffffff',
-                                    backgroundColor: '#ffffff',
-                                  }}
-                                  onChangeText={text => setdiadiem(text)}
-                                  value={diadiem}
-                                  multiline={true}
-                                  numberOfLines={4}
-                                  underlineColor="transparent"
-                                />
-                              </View>
-                            </View>
+                            ) : null}
                             <Text
                               style={[
                                 styles.TextNormal,
@@ -1431,7 +1794,7 @@ const Chitiethosoxuly = props => {
                                   marginTop: 5,
                                 },
                               ]}>
-                              Nội dung:
+                              Nội dung:<Text style={{color: 'red'}}>(*)</Text>
                             </Text>
                             <TextInput
                               style={{
@@ -1510,8 +1873,10 @@ const Chitiethosoxuly = props => {
                                 backgroundColor: '#ffffff',
                                 borderWidth: 1,
                                 borderRadius: 5,
-                                height: 30,
+                                height: 70,
                                 flexDirection: 'row',
+                                justifyContent: 'center',
+                                alignItems: 'center',
                               }}>
                               <TouchableOpacity
                                 onPress={() => {
@@ -1523,8 +1888,10 @@ const Chitiethosoxuly = props => {
                                   width: '30%',
                                   backgroundColor: '#C0C0C0',
                                   marginLeft: 2,
+                                  height: 30,
                                   marginTop: 2,
                                   marginBottom: 2,
+                                  justifyContent: 'center',
                                 }}>
                                 <Text
                                   style={{
@@ -1538,16 +1905,23 @@ const Chitiethosoxuly = props => {
                               <View
                                 style={{
                                   width: '69%',
+                                  height: '100%',
                                   justifyContent: 'center',
                                 }}>
-                                <Text
-                                  numberOfLines={1}
-                                  style={[
-                                    styles.TextNormal,
-                                    {marginLeft: 3, textAlign: 'left'},
-                                  ]}>
-                                  {FileName ? FileName : 'Chưa có tệp'}
-                                </Text>
+                                <ScrollView nestedScrollEnabled={true}>
+                                  <Text
+                                    numberOfLines={10}
+                                    style={[
+                                      styles.TextNormal,
+                                      {
+                                        marginLeft: 3,
+                                        textAlign: 'left',
+                                        width: '90%',
+                                      },
+                                    ]}>
+                                    {FileName ? FileName : 'Chưa có tệp'}
+                                  </Text>
+                                </ScrollView>
                               </View>
                             </View>
                             <Text
@@ -1582,10 +1956,43 @@ const Chitiethosoxuly = props => {
                                 <TouchableOpacity
                                   style={styles.touchableOpacity}
                                   onPress={() => {
-                                    getTrangThaiHienHanh1(TrangThaiSTT);
-                                    sendEmail1();
-                                    if (checkedNNHS === true) {
-                                      sendEmail(TEMPLATE_EMAIL_SUBJECT.PENDING);
+                                    if (noidung === '') {
+                                      handleModalPress();
+                                    } else {
+                                      if (MangQuyen[0] != 16) {
+                                        handleModalPress1();
+                                      } else {
+                                        getTrangThaiHienHanh1(TrangThaiSTT);
+                                        // getDataHoSo(idThuTuc);
+                                        if (checkedNNHS === true) {
+                                          if (
+                                            tabledata.MC_TTHC_GV_IDMucDo === 2
+                                          ) {
+                                            if (diadiem === '') {
+                                              handleModalPress4();
+                                            } else {
+                                              senEmailMD2();
+                                            }
+                                          } else {
+                                            sendEmail(
+                                              TEMPLATE_EMAIL_SUBJECT.PENDING,
+                                            );
+                                            sendEmail1();
+                                          }
+                                        } else {
+                                          if (
+                                            tabledata.MC_TTHC_GV_IDMucDo === 2
+                                          ) {
+                                            if (diadiem === '') {
+                                              handleModalPress4();
+                                            } else {
+                                              senEmailMD2();
+                                            }
+                                          } else {
+                                            sendEmail1();
+                                          }
+                                        }
+                                      }
                                     }
                                   }}>
                                   <Text style={{color: 'white', fontSize: 18}}>
@@ -1602,15 +2009,7 @@ const Chitiethosoxuly = props => {
                                     {backgroundColor: 'red'},
                                   ]}
                                   onPress={() => {
-                                    if (dataTable.length == 0) {
-                                      handleModalPress1();
-                                    } else {
-                                      if (!kiemTraChonMonHoc) {
-                                        handleModalPress2();
-                                      } else {
-                                        PostYeuCau();
-                                      }
-                                    }
+                                    Huytra();
                                   }}>
                                   <Text
                                     style={{color: '#ffffff', fontSize: 19}}>
@@ -1622,12 +2021,7 @@ const Chitiethosoxuly = props => {
                           </View>
                         ) : tabledata.MC_TTHC_GV_TrangThai_STT_TPD ===
                           TrangThaiSTT ? (
-                          <View
-                            style={[
-                              styles.noidungtungbuoc,
-                              isDisabled1 && styles.disabled,
-                              {height: 650},
-                            ]}>
+                          <View style={[styles.noidungtungbuoc, {height: 650}]}>
                             <Text
                               style={[
                                 styles.TextBold,
@@ -1671,131 +2065,62 @@ const Chitiethosoxuly = props => {
                                 </Text>
                               </View>
                             </View>
-                            <View style={{flexDirection: 'row'}}>
-                              <View style={{marginTop: 10, marginLeft: 15}}>
-                                <Text
-                                  style={[
-                                    styles.TextNormal,
-                                    {textAlign: 'left'},
-                                  ]}>
-                                  Ngày giờ hẹn trả
-                                </Text>
-                                <View style={{flexDirection: 'row'}}>
-                                  <TouchableOpacity
-                                    onPress={handlePress}
-                                    style={{
-                                      flexDirection: 'row',
-                                      borderWidth: 1,
-                                      width: '65%',
-                                      borderRadius: 5,
-                                    }}>
-                                    <DatePicker
-                                      modal
-                                      mode="date"
-                                      open={open}
-                                      date={ngaygui}
-                                      onConfirm={ngaygui => {
-                                        setopen(false);
-                                        setngaygui(ngaygui);
-                                      }}
-                                      onCancel={() => {
-                                        setopen(false);
-                                      }}
-                                    />
-                                    <TextInput
-                                      readOnly={true}
-                                      style={{
-                                        height: 30,
-                                        width: '80%',
-                                        backgroundColor: '#ffffff',
-                                      }}
-                                      value={ngaygui
-                                        .toLocaleDateString('vi-VN')
-                                        .toString()}
-                                    />
 
-                                    <Image
-                                      source={require('../../../../../images/calendar.png')}
-                                      style={{
-                                        width: 25,
-                                        height: 25,
-                                        marginTop: 2.5,
-                                        marginLeft: 1,
-                                      }}
-                                    />
-                                  </TouchableOpacity>
-                                </View>
-                              </View>
-                              <View style={{marginTop: 10, marginLeft: -20}}>
-                                <Text
-                                  style={[
-                                    styles.TextNormal,
-                                    {textAlign: 'left'},
-                                  ]}>
-                                  Địa điểm hẹn trả
-                                </Text>
-                                <TextInput
-                                  style={{
-                                    height: 20,
-                                    width: 120,
-                                    fontSize: 18,
-
-                                    borderColor: 'black',
-                                    borderWidth: 0.5,
-                                    padding: 7,
-                                    borderRadius: 5,
-                                    borderTopLeftRadius: 5,
-                                    borderTopRightRadius: 5,
-                                    color: 'black',
-                                    backgroundColor: '#ffffff',
-                                    backgroundColor: '#ffffff',
-                                  }}
-                                  onChangeText={text => setdiadiem(text)}
-                                  value={diadiem}
-                                  multiline={true}
-                                  numberOfLines={4}
-                                  underlineColor="transparent"
-                                />
-                              </View>
-                            </View>
                             <RadioButton.Group
                               onValueChange={newValue => setChecked(newValue)}
                               value={checked}>
-                              <View style={{marginLeft: 5}}>
-                                <View
-                                  style={[styles.radioItem, {marginLeft: 5}]}>
-                                  <RadioButton
-                                    value="0"
-                                    color="black"
-                                    uncheckedColor="black"
-                                  />
-                                  <Text style={styles.modalText}>
-                                    Phê duyệt
-                                  </Text>
+                              {tabledata.MC_TTHC_GV_TrangThai_STT_BGHD ==
+                              null ? (
+                                <View style={{marginLeft: 5}}>
+                                  <View
+                                    style={[styles.radioItem, {marginLeft: 5}]}>
+                                    <RadioButton
+                                      value="0"
+                                      color="black"
+                                      uncheckedColor="black"
+                                    />
+                                    <Text style={styles.modalText}>
+                                      Phê duyệt
+                                    </Text>
+                                  </View>
+                                  <View
+                                    style={[styles.radioItem, {marginLeft: 5}]}>
+                                    <RadioButton
+                                      value="1"
+                                      color="black"
+                                      uncheckedColor="black"
+                                    />
+                                    <Text style={styles.modalText}>
+                                      Không phê duyệt
+                                    </Text>
+                                  </View>
                                 </View>
-                                <View
-                                  style={[styles.radioItem, {marginLeft: 5}]}>
-                                  <RadioButton
-                                    value="1"
-                                    color="black"
-                                    uncheckedColor="black"
-                                  />
-                                  <Text style={styles.modalText}>
-                                    Không phê duyệt
-                                  </Text>
+                              ) : (
+                                <View style={{marginLeft: 5}}>
+                                  <View
+                                    style={[styles.radioItem, {marginLeft: 5}]}>
+                                    <RadioButton
+                                      value="1"
+                                      color="black"
+                                      uncheckedColor="black"
+                                    />
+                                    <Text style={styles.modalText}>
+                                      Không phê duyệt
+                                    </Text>
+                                  </View>
+                                  <View
+                                    style={[styles.radioItem, {marginLeft: 5}]}>
+                                    <RadioButton
+                                      value="2"
+                                      color="black"
+                                      uncheckedColor="black"
+                                    />
+                                    <Text style={styles.modalText}>
+                                      Trình duyệt
+                                    </Text>
+                                  </View>
                                 </View>
-                                <View
-                                  style={[styles.radioItem, {marginLeft: 5}]}>
-                                  <RadioButton
-                                    value="2"
-                                    color="black"
-                                    uncheckedColor="black"
-                                  />
-                                  <Text style={styles.modalText}>
-                                    Trình duyệt
-                                  </Text>
-                                </View>
-                              </View>
+                              )}
                             </RadioButton.Group>
 
                             <Text
@@ -1886,8 +2211,10 @@ const Chitiethosoxuly = props => {
                                 backgroundColor: '#ffffff',
                                 borderWidth: 1,
                                 borderRadius: 5,
-                                height: 30,
+                                height: 70,
                                 flexDirection: 'row',
+                                justifyContent: 'center',
+                                alignItems: 'center',
                               }}>
                               <TouchableOpacity
                                 onPress={() => {
@@ -1899,8 +2226,10 @@ const Chitiethosoxuly = props => {
                                   width: '30%',
                                   backgroundColor: '#C0C0C0',
                                   marginLeft: 2,
+                                  height: 30,
                                   marginTop: 2,
                                   marginBottom: 2,
+                                  justifyContent: 'center',
                                 }}>
                                 <Text
                                   style={{
@@ -1914,16 +2243,23 @@ const Chitiethosoxuly = props => {
                               <View
                                 style={{
                                   width: '69%',
+                                  height: '100%',
                                   justifyContent: 'center',
                                 }}>
-                                <Text
-                                  numberOfLines={1}
-                                  style={[
-                                    styles.TextNormal,
-                                    {marginLeft: 3, textAlign: 'left'},
-                                  ]}>
-                                  {FileName ? FileName : 'Chưa có tệp'}
-                                </Text>
+                                <ScrollView nestedScrollEnabled={true}>
+                                  <Text
+                                    numberOfLines={10}
+                                    style={[
+                                      styles.TextNormal,
+                                      {
+                                        marginLeft: 3,
+                                        textAlign: 'left',
+                                        width: '90%',
+                                      },
+                                    ]}>
+                                    {FileName ? FileName : 'Chưa có tệp'}
+                                  </Text>
+                                </ScrollView>
                               </View>
                             </View>
                             <Text
@@ -1949,7 +2285,7 @@ const Chitiethosoxuly = props => {
                               ]}>
                               (Kích thước tối đa 5 MB)
                             </Text>
-                            <View style={styles.viewFooter}>
+                            <View style={styles.viewFooter1}>
                               <View
                                 style={[
                                   styles.buttonHuy,
@@ -1958,43 +2294,28 @@ const Chitiethosoxuly = props => {
                                 <TouchableOpacity
                                   style={styles.touchableOpacity}
                                   onPress={() => {
-                                    getTrangThaiHienHanh1(TrangThaiSTT);
-                                    //  PostYeuCau(getTrangThaiHienHanh(TrangThaiSTT));
-                                    //printTrangThai(TrangThaiSTT);
-                                    if (checkedCBXL === true) {
-                                      sendEmail2();
-                                    }
-                                    if (checked === '2') {
-                                      sendEmail3();
+                                    if (noidung === '') {
+                                      handleModalPress();
+                                    } else {
+                                      if (MangQuyen[0] != 24) {
+                                        handleModalPress1();
+                                      }
+                                      if (checked === '') {
+                                        handleModalPress6();
+                                      } else {
+                                        getTrangThaiHienHanh1(TrangThaiSTT);
+                                        //getDataHoSo(idThuTuc);
+                                        if (checkedCBXL === true) {
+                                          sendEmail2();
+                                        }
+                                        if (checked === '2') {
+                                          sendEmail3();
+                                        }
+                                      }
                                     }
                                   }}>
                                   <Text style={{color: 'white', fontSize: 18}}>
-                                    Tiếp nhận
-                                  </Text>
-                                </TouchableOpacity>
-                              </View>
-
-                              <View
-                                style={[styles.buttonHuy, {marginRight: 30}]}>
-                                <TouchableOpacity
-                                  style={[
-                                    styles.touchableOpacity,
-                                    {backgroundColor: 'red'},
-                                  ]}
-                                  onPress={() => {
-                                    // if (dataTable.length == 0) {
-                                    //   handleModalPress1();
-                                    // } else {
-                                    //   if (!kiemTraChonMonHoc) {
-                                    //     handleModalPress2();
-                                    //   } else {
-                                    //     PostYeuCau();
-                                    //   }
-                                    // }
-                                  }}>
-                                  <Text
-                                    style={{color: '#ffffff', fontSize: 19}}>
-                                    Hủy trả
+                                    Gửi
                                   </Text>
                                 </TouchableOpacity>
                               </View>
@@ -2002,11 +2323,7 @@ const Chitiethosoxuly = props => {
                           </View>
                         ) : tabledata.MC_TTHC_GV_TrangThai_STT_BGHD ===
                           TrangThaiSTT ? (
-                          <View
-                            style={[
-                              styles.noidungtungbuoc,
-                              isDisabled1 && styles.disabled,
-                            ]}>
+                          <View style={[styles.noidungtungbuoc]}>
                             <Text
                               style={[
                                 styles.TextBold,
@@ -2050,96 +2367,10 @@ const Chitiethosoxuly = props => {
                                 </Text>
                               </View>
                             </View>
-                            <View style={{flexDirection: 'row'}}>
-                              <View style={{marginTop: 10, marginLeft: 15}}>
-                                <Text
-                                  style={[
-                                    styles.TextNormal,
-                                    {textAlign: 'left'},
-                                  ]}>
-                                  Ngày giờ hẹn trả
-                                </Text>
-                                <View style={{flexDirection: 'row'}}>
-                                  <TouchableOpacity
-                                    onPress={handlePress}
-                                    style={{
-                                      flexDirection: 'row',
-                                      borderWidth: 1,
-                                      width: '65%',
-                                      borderRadius: 5,
-                                    }}>
-                                    <DatePicker
-                                      modal
-                                      mode="date"
-                                      open={open}
-                                      date={ngaygui}
-                                      onConfirm={ngaygui => {
-                                        setopen(false);
-                                        setngaygui(ngaygui);
-                                      }}
-                                      onCancel={() => {
-                                        setopen(false);
-                                      }}
-                                    />
-                                    <TextInput
-                                      readOnly={true}
-                                      style={{
-                                        height: 30,
-                                        width: '80%',
-                                        backgroundColor: '#ffffff',
-                                      }}
-                                      value={ngaygui
-                                        .toLocaleDateString('vi-VN')
-                                        .toString()}
-                                    />
 
-                                    <Image
-                                      source={require('../../../../../images/calendar.png')}
-                                      style={{
-                                        width: 25,
-                                        height: 25,
-                                        marginTop: 2.5,
-                                        marginLeft: 1,
-                                      }}
-                                    />
-                                  </TouchableOpacity>
-                                </View>
-                              </View>
-                              <View style={{marginTop: 10, marginLeft: -10}}>
-                                <Text
-                                  style={[
-                                    styles.TextNormal,
-                                    {textAlign: 'left'},
-                                  ]}>
-                                  Địa điểm hẹn trả
-                                </Text>
-                                <TextInput
-                                  style={{
-                                    height: 20,
-                                    width: 120,
-                                    fontSize: 18,
-
-                                    borderColor: 'black',
-                                    borderWidth: 0.5,
-                                    padding: 7,
-                                    borderRadius: 5,
-                                    borderTopLeftRadius: 5,
-                                    borderTopRightRadius: 5,
-                                    color: 'black',
-                                    backgroundColor: '#ffffff',
-                                    backgroundColor: '#ffffff',
-                                  }}
-                                  onChangeText={text => setdiadiem(text)}
-                                  value={diadiem}
-                                  multiline={true}
-                                  numberOfLines={4}
-                                  underlineColor="transparent"
-                                />
-                              </View>
-                            </View>
                             <RadioButton.Group
                               onValueChange={newValue => setChecked1(newValue)}
-                              value={checked}>
+                              value={checked1}>
                               <View style={{flexDirection: 'row'}}>
                                 <View
                                   style={[styles.radioItem, {marginLeft: 15}]}>
@@ -2254,8 +2485,10 @@ const Chitiethosoxuly = props => {
                                 backgroundColor: '#ffffff',
                                 borderWidth: 1,
                                 borderRadius: 5,
-                                height: 30,
+                                height: 70,
                                 flexDirection: 'row',
+                                justifyContent: 'center',
+                                alignItems: 'center',
                               }}>
                               <TouchableOpacity
                                 onPress={() => {
@@ -2267,8 +2500,10 @@ const Chitiethosoxuly = props => {
                                   width: '30%',
                                   backgroundColor: '#C0C0C0',
                                   marginLeft: 2,
+                                  height: 30,
                                   marginTop: 2,
                                   marginBottom: 2,
+                                  justifyContent: 'center',
                                 }}>
                                 <Text
                                   style={{
@@ -2282,16 +2517,23 @@ const Chitiethosoxuly = props => {
                               <View
                                 style={{
                                   width: '69%',
+                                  height: '100%',
                                   justifyContent: 'center',
                                 }}>
-                                <Text
-                                  numberOfLines={1}
-                                  style={[
-                                    styles.TextNormal,
-                                    {marginLeft: 3, textAlign: 'left'},
-                                  ]}>
-                                  {FileName ? FileName : 'Chưa có tệp'}
-                                </Text>
+                                <ScrollView nestedScrollEnabled={true}>
+                                  <Text
+                                    numberOfLines={10}
+                                    style={[
+                                      styles.TextNormal,
+                                      {
+                                        marginLeft: 3,
+                                        textAlign: 'left',
+                                        width: '90%',
+                                      },
+                                    ]}>
+                                    {FileName ? FileName : 'Chưa có tệp'}
+                                  </Text>
+                                </ScrollView>
                               </View>
                             </View>
                             <Text
@@ -2317,7 +2559,7 @@ const Chitiethosoxuly = props => {
                               ]}>
                               (Kích thước tối đa 5 MB)
                             </Text>
-                            <View style={styles.viewFooter}>
+                            <View style={styles.viewFooter1}>
                               <View
                                 style={[
                                   styles.buttonHuy,
@@ -2326,40 +2568,23 @@ const Chitiethosoxuly = props => {
                                 <TouchableOpacity
                                   style={styles.touchableOpacity}
                                   onPress={() => {
-                                    getTrangThaiHienHanh1(TrangThaiSTT);
-                                    //  PostYeuCau(getTrangThaiHienHanh(TrangThaiSTT));
-                                    //printTrangThai(TrangThaiSTT);
-                                    if (checkedTPDV === true) {
-                                      sendEmail1();
+                                    if (noidung === '') {
+                                      handleModalPress();
+                                    } else {
+                                      if (MangQuyen[0] != 25) {
+                                        handleModalPress1();
+                                      } else {
+                                        getTrangThaiHienHanh1(TrangThaiSTT);
+
+                                        //  getDataHoSo(idThuTuc);
+                                        if (checkedTPDV === true) {
+                                          sendEmail1();
+                                        }
+                                      }
                                     }
                                   }}>
                                   <Text style={{color: 'white', fontSize: 18}}>
-                                    Tiếp nhận
-                                  </Text>
-                                </TouchableOpacity>
-                              </View>
-
-                              <View
-                                style={[styles.buttonHuy, {marginRight: 30}]}>
-                                <TouchableOpacity
-                                  style={[
-                                    styles.touchableOpacity,
-                                    {backgroundColor: 'red'},
-                                  ]}
-                                  onPress={() => {
-                                    // if (dataTable.length == 0) {
-                                    //   handleModalPress1();
-                                    // } else {
-                                    //   if (!kiemTraChonMonHoc) {
-                                    //     handleModalPress2();
-                                    //   } else {
-                                    //     PostYeuCau();
-                                    //   }
-                                    // }
-                                  }}>
-                                  <Text
-                                    style={{color: '#ffffff', fontSize: 19}}>
-                                    Hủy trả
+                                    Gửi
                                   </Text>
                                 </TouchableOpacity>
                               </View>
@@ -2408,93 +2633,98 @@ const Chitiethosoxuly = props => {
                                 </Text>
                               </View>
                             </View>
-                            <View style={{flexDirection: 'row'}}>
-                              <View style={{marginTop: 10, marginLeft: 15}}>
-                                <Text
-                                  style={[
-                                    styles.TextNormal,
-                                    {textAlign: 'left'},
-                                  ]}>
-                                  Ngày giờ hẹn trả
-                                </Text>
-                                <View style={{flexDirection: 'row'}}>
-                                  <TouchableOpacity
-                                    onPress={handlePress}
-                                    style={{
-                                      flexDirection: 'row',
-                                      borderWidth: 1,
-                                      width: '65%',
-                                      borderRadius: 5,
-                                    }}>
-                                    <DatePicker
-                                      modal
-                                      mode="date"
-                                      open={open}
-                                      date={ngaygui}
-                                      onConfirm={ngaygui => {
-                                        setopen(false);
-                                        setngaygui(ngaygui);
-                                      }}
-                                      onCancel={() => {
-                                        setopen(false);
-                                      }}
-                                    />
-                                    <TextInput
-                                      readOnly={true}
+                            {tabledata.MC_TTHC_GV_IDMucDo === 2 ||
+                            tabledata.MC_TTHC_GV_IDMucDo === 3 ? (
+                              <View style={{flexDirection: 'row'}}>
+                                <View style={{marginTop: 10, marginLeft: 15}}>
+                                  <Text
+                                    style={[
+                                      styles.TextNormal,
+                                      {textAlign: 'left'},
+                                    ]}>
+                                    Ngày giờ hẹn trả
+                                  </Text>
+                                  <View style={{flexDirection: 'row'}}>
+                                    <TouchableOpacity
+                                      onPress={handlePress}
                                       style={{
-                                        height: 30,
-                                        width: '80%',
-                                        backgroundColor: '#ffffff',
-                                      }}
-                                      value={ngaygui
-                                        .toLocaleDateString('vi-VN')
-                                        .toString()}
-                                    />
+                                        flexDirection: 'row',
+                                        borderWidth: 1,
+                                        width: '65%',
+                                        borderRadius: 5,
+                                      }}>
+                                      <DatePicker
+                                        modal
+                                        mode="datetime"
+                                        open={open}
+                                        date={ngaygui}
+                                        onConfirm={ngaygui => {
+                                          setopen(false);
+                                          setngaygui(ngaygui);
+                                        }}
+                                        onCancel={() => {
+                                          setopen(false);
+                                        }}
+                                      />
+                                      <TextInput
+                                        readOnly={true}
+                                        style={{
+                                          height: 30,
+                                          width: '80%',
+                                          backgroundColor: '#ffffff',
+                                        }}
+                                        value={ngaygui
+                                          .toLocaleDateString('vi-VN')
+                                          .toString()}
+                                      />
 
-                                    <Image
-                                      source={require('../../../../../images/calendar.png')}
-                                      style={{
-                                        width: 25,
-                                        height: 25,
-                                        marginTop: 2.5,
-                                        marginLeft: 1,
-                                      }}
-                                    />
-                                  </TouchableOpacity>
+                                      <Image
+                                        source={require('../../../../../images/calendar.png')}
+                                        style={{
+                                          width: 25,
+                                          height: 25,
+                                          marginTop: 2.5,
+                                          marginLeft: 1,
+                                        }}
+                                      />
+                                    </TouchableOpacity>
+                                  </View>
+                                </View>
+                                <View style={{marginTop: 10, marginLeft: -20}}>
+                                  <Text
+                                    style={[
+                                      styles.TextNormal,
+                                      {textAlign: 'left'},
+                                    ]}>
+                                    Địa điểm hẹn trả
+                                    <Text style={{color: 'red'}}>(*)</Text>
+                                  </Text>
+                                  <TextInput
+                                    style={{
+                                      height: 20,
+                                      width: 120,
+                                      fontSize: 18,
+
+                                      borderColor: 'black',
+                                      borderWidth: 0.5,
+                                      padding: 5,
+                                      borderRadius: 5,
+                                      borderTopLeftRadius: 5,
+                                      borderTopRightRadius: 5,
+                                      color: 'black',
+                                      backgroundColor: '#ffffff',
+                                      backgroundColor: '#ffffff',
+                                    }}
+                                    onChangeText={text => setdiadiem(text)}
+                                    value={diadiem}
+                                    multiline={true}
+                                    numberOfLines={4}
+                                    underlineColor="transparent"
+                                  />
                                 </View>
                               </View>
-                              <View style={{marginTop: 10, marginLeft: -20}}>
-                                <Text
-                                  style={[
-                                    styles.TextNormal,
-                                    {textAlign: 'left'},
-                                  ]}>
-                                  Địa điểm hẹn trả
-                                </Text>
-                                <TextInput
-                                  style={{
-                                    height: 20,
-                                    width: 120,
-                                    fontSize: 18,
+                            ) : null}
 
-                                    borderColor: 'black',
-                                    borderWidth: 0.5,
-                                    padding: 5,
-                                    borderRadius: 5,
-                                    borderTopLeftRadius: 5,
-                                    borderTopRightRadius: 5,
-                                    color: 'black',
-                                    backgroundColor: '#ffffff',
-                                    backgroundColor: '#ffffff',
-                                  }}
-                                  onChangeText={text => setdiadiem(text)}
-                                  value={diadiem}
-                                  multiline={true}
-                                  numberOfLines={4}
-                                  underlineColor="transparent"
-                                />
-                              </View>
-                            </View>
                             <Text
                               style={[
                                 styles.TextNormal,
@@ -2504,7 +2734,7 @@ const Chitiethosoxuly = props => {
                                   marginTop: 5,
                                 },
                               ]}>
-                              Nội dung:
+                              Nội dung:<Text style={{color: 'red'}}>(*)</Text>
                             </Text>
                             <TextInput
                               style={{
@@ -2583,8 +2813,10 @@ const Chitiethosoxuly = props => {
                                 backgroundColor: '#ffffff',
                                 borderWidth: 1,
                                 borderRadius: 5,
-                                height: 30,
+                                height: 70,
                                 flexDirection: 'row',
+                                justifyContent: 'center',
+                                alignItems: 'center',
                               }}>
                               <TouchableOpacity
                                 onPress={() => {
@@ -2596,8 +2828,10 @@ const Chitiethosoxuly = props => {
                                   width: '30%',
                                   backgroundColor: '#C0C0C0',
                                   marginLeft: 2,
+                                  height: 30,
                                   marginTop: 2,
                                   marginBottom: 2,
+                                  justifyContent: 'center',
                                 }}>
                                 <Text
                                   style={{
@@ -2611,16 +2845,23 @@ const Chitiethosoxuly = props => {
                               <View
                                 style={{
                                   width: '69%',
+                                  height: '100%',
                                   justifyContent: 'center',
                                 }}>
-                                <Text
-                                  numberOfLines={1}
-                                  style={[
-                                    styles.TextNormal,
-                                    {marginLeft: 3, textAlign: 'left'},
-                                  ]}>
-                                  {FileName ? FileName : 'Chưa có tệp'}
-                                </Text>
+                                <ScrollView nestedScrollEnabled={true}>
+                                  <Text
+                                    numberOfLines={10}
+                                    style={[
+                                      styles.TextNormal,
+                                      {
+                                        marginLeft: 3,
+                                        textAlign: 'left',
+                                        width: '90%',
+                                      },
+                                    ]}>
+                                    {FileName ? FileName : 'Chưa có tệp'}
+                                  </Text>
+                                </ScrollView>
                               </View>
                             </View>
                             <Text
@@ -2655,12 +2896,37 @@ const Chitiethosoxuly = props => {
                                 <TouchableOpacity
                                   style={styles.touchableOpacity}
                                   onPress={() => {
-                                    if (checkedNNHS === true) {
-                                      sendEmail(TEMPLATE_EMAIL_SUBJECT.SUCCESS);
+                                    if (noidung === '') {
+                                      handleModalPress();
+                                    } else {
+                                      if (MangQuyen[0] != 16) {
+                                        handleModalPress1();
+                                      } else {
+                                        getTrangThaiHienHanh1(TrangThaiSTT);
+                                        // getDataHoSo(idThuTuc);
+                                        if (checkedNNHS === true) {
+                                          if (
+                                            tabledata.MC_TTHC_GV_IDMucDo === 2
+                                          ) {
+                                            if (diadiem === '') {
+                                              handleModalPress4();
+                                            } else {
+                                              senEmailMD2();
+                                            }
+                                          } else {
+                                            sendEmail(
+                                              TEMPLATE_EMAIL_SUBJECT.SUCCESS,
+                                            );
+                                          }
+                                        }
+                                      }
                                     }
 
-                                    getTrangThaiHienHanh1(TrangThaiSTT);
-                                    //  sendEmailTTHCGiangVien('',MangBuocHienHanh.MC_TTHC_GV_TrangThai_TenTrangThai,tabledata,tabledata,tabledata2.MC_TTHC_GV_ThanhPhanHoSo_TenGiayTo,noidung,FileName,base64Content,'vuhoaingoc1608@gmail.com');
+                                    console.log(
+                                      ngaygui
+                                        .toLocaleDateString('vi-vn')
+                                        .toString(),
+                                    );
                                   }}>
                                   <Text style={{color: 'white', fontSize: 18}}>
                                     Tiếp nhận
@@ -2749,93 +3015,97 @@ const Chitiethosoxuly = props => {
                                 </Text>
                               </View>
                             </View>
-                            <View style={{flexDirection: 'row'}}>
-                              <View style={{marginTop: 10, marginLeft: 15}}>
-                                <Text
-                                  style={[
-                                    styles.TextNormal,
-                                    {textAlign: 'left'},
-                                  ]}>
-                                  Ngày giờ hẹn trả
-                                </Text>
-                                <View style={{flexDirection: 'row'}}>
-                                  <TouchableOpacity
-                                    onPress={handlePress}
-                                    style={{
-                                      flexDirection: 'row',
-                                      borderWidth: 1,
-                                      width: '65%',
-                                      borderRadius: 5,
-                                    }}>
-                                    <DatePicker
-                                      modal
-                                      mode="date"
-                                      open={open}
-                                      date={ngaygui}
-                                      onConfirm={ngaygui => {
-                                        setopen(false);
-                                        setngaygui(ngaygui);
-                                      }}
-                                      onCancel={() => {
-                                        setopen(false);
-                                      }}
-                                    />
-                                    <TextInput
-                                      readOnly={true}
+                            {tabledata.MC_TTHC_GV_IDMucDo === 2 ||
+                            tabledata.MC_TTHC_GV_IDMucDo === 3 ? (
+                              <View style={{flexDirection: 'row'}}>
+                                <View style={{marginTop: 10, marginLeft: 15}}>
+                                  <Text
+                                    style={[
+                                      styles.TextNormal,
+                                      {textAlign: 'left'},
+                                    ]}>
+                                    Ngày giờ hẹn trả
+                                  </Text>
+                                  <View style={{flexDirection: 'row'}}>
+                                    <TouchableOpacity
+                                      onPress={handlePress}
                                       style={{
-                                        height: 30,
-                                        width: '80%',
-                                        backgroundColor: '#ffffff',
-                                      }}
-                                      value={ngaygui
-                                        .toLocaleDateString('vi-VN')
-                                        .toString()}
-                                    />
+                                        flexDirection: 'row',
+                                        borderWidth: 1,
+                                        width: '65%',
+                                        borderRadius: 5,
+                                      }}>
+                                      <DatePicker
+                                        modal
+                                        mode="datetime"
+                                        open={open}
+                                        date={ngaygui}
+                                        onConfirm={ngaygui => {
+                                          setopen(false);
+                                          setngaygui(ngaygui);
+                                        }}
+                                        onCancel={() => {
+                                          setopen(false);
+                                        }}
+                                      />
+                                      <TextInput
+                                        readOnly={true}
+                                        style={{
+                                          height: 30,
+                                          width: '80%',
+                                          backgroundColor: '#ffffff',
+                                        }}
+                                        value={ngaygui
+                                          .toLocaleDateString('vi-VN')
+                                          .toString()}
+                                      />
 
-                                    <Image
-                                      source={require('../../../../../images/calendar.png')}
-                                      style={{
-                                        width: 25,
-                                        height: 25,
-                                        marginTop: 2.5,
-                                        marginLeft: 1,
-                                      }}
-                                    />
-                                  </TouchableOpacity>
+                                      <Image
+                                        source={require('../../../../../images/calendar.png')}
+                                        style={{
+                                          width: 25,
+                                          height: 25,
+                                          marginTop: 2.5,
+                                          marginLeft: 1,
+                                        }}
+                                      />
+                                    </TouchableOpacity>
+                                  </View>
+                                </View>
+                                <View style={{marginTop: 10, marginLeft: -20}}>
+                                  <Text
+                                    style={[
+                                      styles.TextNormal,
+                                      {textAlign: 'left'},
+                                    ]}>
+                                    Địa điểm hẹn trả
+                                    <Text style={{color: 'red'}}>(*)</Text>
+                                  </Text>
+                                  <TextInput
+                                    style={{
+                                      height: 20,
+                                      width: 120,
+                                      fontSize: 18,
+
+                                      borderColor: 'black',
+                                      borderWidth: 0.5,
+                                      padding: 5,
+                                      borderRadius: 5,
+                                      borderTopLeftRadius: 5,
+                                      borderTopRightRadius: 5,
+                                      color: 'black',
+                                      backgroundColor: '#ffffff',
+                                      backgroundColor: '#ffffff',
+                                    }}
+                                    onChangeText={text => setdiadiem(text)}
+                                    value={diadiem}
+                                    multiline={true}
+                                    numberOfLines={4}
+                                    underlineColor="transparent"
+                                  />
                                 </View>
                               </View>
-                              <View style={{marginTop: 10, marginLeft: -10}}>
-                                <Text
-                                  style={[
-                                    styles.TextNormal,
-                                    {textAlign: 'left'},
-                                  ]}>
-                                  Địa điểm hẹn trả
-                                </Text>
-                                <TextInput
-                                  style={{
-                                    height: 20,
-                                    width: 120,
-                                    fontSize: 18,
-
-                                    borderColor: 'black',
-                                    borderWidth: 0.5,
-                                    padding: 7,
-                                    borderRadius: 5,
-                                    borderTopLeftRadius: 5,
-                                    borderTopRightRadius: 5,
-                                    color: 'black',
-                                    backgroundColor: '#ffffff',
-                                    backgroundColor: '#ffffff',
-                                  }}
-                                  onChangeText={text => setdiadiem(text)}
-                                  value={diadiem}
-                                  multiline={true}
-                                  numberOfLines={4}
-                                  underlineColor="transparent"
-                                />
-                              </View>
-                            </View>
+                            ) : null}
 
                             <Text
                               style={[
@@ -2846,7 +3116,7 @@ const Chitiethosoxuly = props => {
                                   marginTop: 5,
                                 },
                               ]}>
-                              Nội dung:
+                              Nội dung:<Text style={{color: 'red'}}>(*)</Text>
                             </Text>
                             <TextInput
                               style={{
@@ -2925,8 +3195,10 @@ const Chitiethosoxuly = props => {
                                 backgroundColor: '#ffffff',
                                 borderWidth: 1,
                                 borderRadius: 5,
-                                height: 30,
+                                height: 70,
                                 flexDirection: 'row',
+                                justifyContent: 'center',
+                                alignItems: 'center',
                               }}>
                               <TouchableOpacity
                                 onPress={() => {
@@ -2938,8 +3210,10 @@ const Chitiethosoxuly = props => {
                                   width: '30%',
                                   backgroundColor: '#C0C0C0',
                                   marginLeft: 2,
+                                  height: 30,
                                   marginTop: 2,
                                   marginBottom: 2,
+                                  justifyContent: 'center',
                                 }}>
                                 <Text
                                   style={{
@@ -2953,16 +3227,23 @@ const Chitiethosoxuly = props => {
                               <View
                                 style={{
                                   width: '69%',
+                                  height: '100%',
                                   justifyContent: 'center',
                                 }}>
-                                <Text
-                                  numberOfLines={1}
-                                  style={[
-                                    styles.TextNormal,
-                                    {marginLeft: 3, textAlign: 'left'},
-                                  ]}>
-                                  {FileName ? FileName : 'Chưa có tệp'}
-                                </Text>
+                                <ScrollView nestedScrollEnabled={true}>
+                                  <Text
+                                    numberOfLines={10}
+                                    style={[
+                                      styles.TextNormal,
+                                      {
+                                        marginLeft: 3,
+                                        textAlign: 'left',
+                                        width: '90%',
+                                      },
+                                    ]}>
+                                    {FileName ? FileName : 'Chưa có tệp'}
+                                  </Text>
+                                </ScrollView>
                               </View>
                             </View>
                             <Text
@@ -2997,11 +3278,31 @@ const Chitiethosoxuly = props => {
                                 <TouchableOpacity
                                   style={styles.touchableOpacity}
                                   onPress={() => {
-                                    if (checkedNNHS === true) {
-                                      sendEmail(TEMPLATE_EMAIL_SUBJECT.SUCCESS);
+                                    if (noidung === '') {
+                                      handleModalPress();
+                                    } else {
+                                      if (MangQuyen[0] != 16) {
+                                        handleModalPress1();
+                                      } else {
+                                        getTrangThaiHienHanh1(TrangThaiSTT);
+                                        //getDataHoSo(idThuTuc);
+                                        if (checkedNNHS === true) {
+                                          if (
+                                            tabledata.MC_TTHC_GV_IDMucDo === 2
+                                          ) {
+                                            if (diadiem === '') {
+                                              handleModalPress4();
+                                            } else {
+                                              senEmailMD2();
+                                            }
+                                          } else {
+                                            sendEmail(
+                                              TEMPLATE_EMAIL_SUBJECT.SUCCESS,
+                                            );
+                                          }
+                                        }
+                                      }
                                     }
-                                    getTrangThaiHienHanh1(TrangThaiSTT);
-                                    //  sendEmailTTHCGiangVien('',MangBuocHienHanh.MC_TTHC_GV_TrangThai_TenTrangThai,tabledata,tabledata,tabledata2.MC_TTHC_GV_ThanhPhanHoSo_TenGiayTo,noidung,FileName,base64Content,'vuhoaingoc1608@gmail.com');
                                   }}>
                                   <Text style={{color: 'white', fontSize: 18}}>
                                     Tiếp nhận
@@ -3087,7 +3388,8 @@ const Chitiethosoxuly = props => {
                 <TouchableOpacity
                   key={index}
                   onPress={() => {
-                    Open(item.trangThai);
+                    Open(item.MC_TTHC_GV_TrangThai_TenTrangThai);
+                    console.log('Mảng chi tiết: ' + chiTietTiepNhanHoSo);
                   }}>
                   <View style={styles.chiTietDanhSachHoSo}>
                     <View style={styles.chiTietViewBuoc}>
@@ -3160,40 +3462,38 @@ const Chitiethosoxuly = props => {
                 </View>
               </View>
 
-              {MangQuyTrinh ? (
-                MangQuyTrinh.length !== 0 ? (
-                  MangQuyTrinh.map((item, index) => (
+              {chiTietTiepNhanHoSo ? (
+                chiTietTiepNhanHoSo.length !== 0 ? (
+                  chiTietTiepNhanHoSo.map((item, index) => (
                     <View style={styles.chiTietDanhSachHoSo1} key={index}>
                       <View style={styles.viewChiTietSTT}>
                         <Text style={styles.text1}>{index + 1}</Text>
                       </View>
 
                       <View style={styles.viewChiTietNguoiXyLy}>
-                        <Text style={styles.text1}>{item.HoTen} </Text>
+                        <Text style={styles.text1}>{item.nguoiXuLy} </Text>
                       </View>
 
                       <View style={styles.viewChiTietNgayHenTra}>
                         <Text style={styles.text1}>
-                          {item.MC_TTHC_GV_GuiYeuCau_NgayHenTra
-                            ? moment(
-                                item.MC_TTHC_GV_GuiYeuCau_NgayHenTra,
-                              ).format('DD/MM/YYYY HH:mm:ss')
+                          {item.ngayHenTra
+                            ? moment(item.ngayHenTra).format(
+                                'DD/MM/YYYY HH:mm:ss',
+                              )
                             : ''}
                         </Text>
                       </View>
 
                       <View style={styles.viewChiTietNoiTraKetQua}>
-                        <Text style={styles.text1}>
-                          {item.MC_TTHC_GV_GuiYeuCau_NoiTraKetQua}{' '}
-                        </Text>
+                        <Text style={styles.text1}>{item.noiTraKetQua} </Text>
                       </View>
 
                       <View style={styles.viewChiTietNgayXuLy}>
                         <Text style={styles.text1}>
-                          {item.MC_TTHC_GV_GuiYeuCau_DateEditor
-                            ? moment(
-                                item.MC_TTHC_GV_GuiYeuCau_DateEditor,
-                              ).format('DD/MM/YYYY HH:mm:ss')
+                          {item.ngayXuLy1
+                            ? moment(item.ngayXuLy1).format(
+                                'DD/MM/YYYY HH:mm:ss',
+                              )
                             : ''}
                         </Text>
                       </View>
@@ -3505,6 +3805,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    backgroundColor: '#ffffff',
+    marginLeft: 15,
+    marginTop: 20,
+  },
+  viewFooter1: {
+    height: '10%',
+    width: '80%',
+
+    alignItems: 'center',
+
     backgroundColor: '#ffffff',
     marginLeft: 15,
     marginTop: 20,
